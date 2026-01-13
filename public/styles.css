@@ -1,0 +1,836 @@
+/* ================================
+   LUNC HORIZON - Cyberpunk Theme
+   Colors: Dark (#0a0e27, #1a1f3a) + Gold (#ffd700, #ffaa00)
+   ================================ */
+
+:root {
+    --primary-dark: #0a0e27;
+    --secondary-dark: #1a1f3a;
+    --accent-gold: #ffd700;
+    --accent-gold-dark: #ffaa00;
+    --accent-cyan: #00ffff;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --border-color: #ffd70033;
+    --success: #00ff00;
+    --error: #ff0000;
+    --shadow-gold: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Rajdhani', sans-serif;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 215, 0, 0.03) 2px,
+            rgba(255, 215, 0, 0.03) 4px
+        );
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* ================================
+   SCREEN MANAGEMENT
+   ================================ */
+
+.screen {
+    display: none;
+    position: relative;
+    z-index: 2;
+}
+
+.screen.active {
+    display: block;
+}
+
+/* ================================
+   LOGIN SCREEN
+   ================================ */
+
+.login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+.logo-container {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.neon-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--accent-gold);
+    text-shadow:
+        0 0 10px var(--accent-gold),
+        0 0 20px var(--accent-gold),
+        0 0 40px var(--accent-gold),
+        0 0 80px var(--accent-gold-dark);
+    letter-spacing: 0.3rem;
+    animation: neonPulse 2s ease-in-out infinite;
+}
+
+@keyframes neonPulse {
+    0%, 100% {
+        text-shadow:
+            0 0 10px var(--accent-gold),
+            0 0 20px var(--accent-gold),
+            0 0 40px var(--accent-gold),
+            0 0 80px var(--accent-gold-dark);
+    }
+    50% {
+        text-shadow:
+            0 0 5px var(--accent-gold),
+            0 0 10px var(--accent-gold),
+            0 0 20px var(--accent-gold),
+            0 0 40px var(--accent-gold-dark);
+    }
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-top: 1rem;
+    letter-spacing: 0.2rem;
+}
+
+.login-box {
+    background: rgba(26, 31, 58, 0.8);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 3rem;
+    min-width: 400px;
+    box-shadow: var(--shadow-gold);
+    backdrop-filter: blur(10px);
+}
+
+.login-box h2 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--accent-gold);
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 1.5rem;
+}
+
+#usernameInput {
+    width: 100%;
+    padding: 1rem;
+    background: rgba(10, 14, 39, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 5px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-family: 'Rajdhani', sans-serif;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+#usernameInput:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+    box-shadow: var(--shadow-gold);
+}
+
+.cyber-button {
+    width: 100%;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--accent-gold-dark), var(--accent-gold));
+    border: none;
+    border-radius: 5px;
+    color: var(--primary-dark);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.cyber-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.cyber-button:hover::before {
+    left: 100%;
+}
+
+.cyber-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(255, 215, 0, 0.5);
+}
+
+.cyber-button:active {
+    transform: translateY(0);
+}
+
+.tech-specs {
+    margin-top: 3rem;
+    display: flex;
+    gap: 2rem;
+}
+
+.spec-item {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.spec-label {
+    color: var(--text-secondary);
+}
+
+.spec-value {
+    color: var(--accent-gold);
+    font-weight: 700;
+}
+
+.spec-value.online {
+    color: var(--success);
+}
+
+.error-message {
+    color: var(--error);
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    text-align: center;
+    display: none;
+}
+
+.error-message.show {
+    display: block;
+}
+
+/* ================================
+   MAIN APP LAYOUT
+   ================================ */
+
+.main-header {
+    background: rgba(26, 31, 58, 0.9);
+    border-bottom: 2px solid var(--border-color);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(10px);
+}
+
+.app-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem;
+    color: var(--accent-gold);
+    text-shadow: 0 0 10px var(--accent-gold);
+}
+
+.user-stats {
+    display: flex;
+    gap: 2rem;
+}
+
+.stat-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.stat-value {
+    color: var(--accent-gold);
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.credits-display .stat-value {
+    font-size: 1.2rem;
+    color: var(--success);
+}
+
+.cyber-button-small {
+    padding: 0.5rem 1.5rem;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid var(--accent-gold);
+    border-radius: 5px;
+    color: var(--accent-gold);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.cyber-button-small:hover {
+    background: var(--accent-gold);
+    color: var(--primary-dark);
+}
+
+.main-layout {
+    display: flex;
+    height: calc(100vh - 80px);
+}
+
+/* ================================
+   SIDEBAR
+   ================================ */
+
+.sidebar {
+    width: 250px;
+    background: rgba(26, 31, 58, 0.8);
+    border-right: 2px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    backdrop-filter: blur(10px);
+}
+
+.nav-menu {
+    padding: 1rem 0;
+}
+
+.nav-item {
+    width: 100%;
+    padding: 1.2rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-left: 3px solid transparent;
+    color: var(--text-secondary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.nav-item:hover {
+    background: rgba(255, 215, 0, 0.1);
+    color: var(--accent-gold);
+    border-left-color: var(--accent-gold);
+}
+
+.nav-item.active {
+    background: rgba(255, 215, 0, 0.2);
+    color: var(--accent-gold);
+    border-left-color: var(--accent-gold);
+}
+
+.nav-icon {
+    font-size: 1.5rem;
+}
+
+.sidebar-footer {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: statusPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+    0%, 100% {
+        box-shadow: 0 0 5px var(--success);
+    }
+    50% {
+        box-shadow: 0 0 15px var(--success);
+    }
+}
+
+/* ================================
+   CONTENT AREA
+   ================================ */
+
+.content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+}
+
+.module {
+    display: none;
+}
+
+.module.active {
+    display: block;
+}
+
+.module-header {
+    margin-bottom: 2rem;
+}
+
+.module-header h2 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--accent-gold);
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.module-description {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* ================================
+   LUNOPOLY MODULE
+   ================================ */
+
+.game-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.game-board {
+    background: rgba(26, 31, 58, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1rem;
+    min-height: 500px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 0.5rem;
+}
+
+.board-cell {
+    background: rgba(10, 14, 39, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.board-cell:hover {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: var(--accent-gold);
+}
+
+.board-cell .cell-position {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+}
+
+.board-cell .cell-name {
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin-bottom: 0.3rem;
+}
+
+.board-cell .cell-price {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.board-cell.player-position {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 15px var(--accent-cyan);
+}
+
+.board-cell.owned {
+    background: rgba(0, 255, 0, 0.1);
+    border-color: var(--success);
+}
+
+.game-controls {
+    background: rgba(26, 31, 58, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.game-info h3 {
+    color: var(--accent-gold);
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.action-btn {
+    margin: 1rem 0;
+}
+
+.dice-result {
+    background: rgba(10, 14, 39, 0.8);
+    border: 1px solid var(--accent-gold);
+    border-radius: 5px;
+    padding: 1rem;
+    text-align: center;
+    font-size: 1.5rem;
+    color: var(--accent-gold);
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timer-display {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.game-log {
+    background: rgba(26, 31, 58, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.game-log h3 {
+    color: var(--accent-gold);
+    margin-bottom: 1rem;
+}
+
+#gameLogContent {
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.log-entry {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+/* ================================
+   SOCIAL WALL MODULE
+   ================================ */
+
+.social-container {
+    background: rgba(26, 31, 58, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.messages-area {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: rgba(10, 14, 39, 0.6);
+    border-radius: 5px;
+}
+
+.message {
+    background: rgba(26, 31, 58, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    animation: messageSlide 0.3s ease;
+}
+
+@keyframes messageSlide {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.message-username {
+    color: var(--accent-gold);
+    font-weight: 700;
+}
+
+.message-timestamp {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.message-content {
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.message-input-area {
+    display: flex;
+    gap: 1rem;
+}
+
+#messageInput {
+    flex: 1;
+    padding: 1rem;
+    background: rgba(10, 14, 39, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 5px;
+    color: var(--text-primary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+}
+
+#messageInput:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+    box-shadow: var(--shadow-gold);
+}
+
+/* ================================
+   BLOG MODULE
+   ================================ */
+
+.blog-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.blog-post {
+    background: rgba(26, 31, 58, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.blog-post:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-gold);
+}
+
+.blog-post h3 {
+    color: var(--accent-gold);
+    margin-bottom: 0.5rem;
+    font-size: 1.3rem;
+}
+
+.blog-post .post-date {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.blog-post .post-content {
+    color: var(--text-primary);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.blog-post a {
+    color: var(--accent-gold);
+    text-decoration: none;
+    font-weight: 700;
+    transition: all 0.3s ease;
+}
+
+.blog-post a:hover {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 10px var(--accent-cyan);
+}
+
+/* ================================
+   LEADERBOARD MODULE
+   ================================ */
+
+.leaderboard-container {
+    background: rgba(26, 31, 58, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaderboard-table thead {
+    background: rgba(10, 14, 39, 0.8);
+}
+
+.leaderboard-table th {
+    padding: 1rem;
+    color: var(--accent-gold);
+    font-family: 'Orbitron', sans-serif;
+    text-align: left;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.leaderboard-table td {
+    padding: 1rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.leaderboard-table tr:hover {
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.rank-1 {
+    color: var(--accent-gold);
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+/* ================================
+   LOADING & UTILITIES
+   ================================ */
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+}
+
+/* ================================
+   SCROLLBAR
+   ================================ */
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--primary-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent-gold);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-gold-dark);
+}
+
+/* ================================
+   RESPONSIVE
+   ================================ */
+
+@media (max-width: 1024px) {
+    .game-container {
+        grid-template-columns: 1fr;
+    }
+
+    .main-layout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+    }
+
+    .nav-menu {
+        display: flex;
+        overflow-x: auto;
+    }
+
+    .nav-item {
+        flex: 1;
+        min-width: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .login-box {
+        min-width: 300px;
+        padding: 2rem;
+    }
+
+    .neon-text {
+        font-size: 2.5rem;
+    }
+
+    .user-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .main-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}

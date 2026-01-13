@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUNC HORIZON - dApp</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <div class="logo-container">
+                <h1 class="neon-text">LUNC HORIZON</h1>
+                <p class="subtitle">Blockchain Gaming & Social Platform</p>
+            </div>
+            <div class="login-box">
+                <h2>Accesso Piattaforma</h2>
+                <input type="text" id="usernameInput" placeholder="Inserisci Username" autocomplete="off">
+                <button id="loginBtn" class="cyber-button">
+                    <span>CONNETTI</span>
+                </button>
+                <div id="loginError" class="error-message"></div>
+            </div>
+            <div class="tech-specs">
+                <div class="spec-item">
+                    <span class="spec-label">NETWORK:</span>
+                    <span class="spec-value">LUNC MAINNET</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">STATUS:</span>
+                    <span class="spec-value online">ONLINE</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="screen">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-left">
+                <h1 class="app-title">LUNC HORIZON</h1>
+            </div>
+            <div class="header-center">
+                <div class="user-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">ID UNIVOCO:</span>
+                        <span class="stat-value" id="userIdDisplay">---</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">USERNAME:</span>
+                        <span class="stat-value" id="usernameDisplay">---</span>
+                    </div>
+                    <div class="stat-item credits-display">
+                        <span class="stat-label">CREDITI:</span>
+                        <span class="stat-value" id="creditsDisplay">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="logoutBtn" class="cyber-button-small">ESCI</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="main-layout">
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar">
+                <nav class="nav-menu">
+                    <button class="nav-item active" data-module="lunopoly">
+                        <span class="nav-icon">🎲</span>
+                        <span class="nav-label">LUNOPOLY</span>
+                    </button>
+                    <button class="nav-item" data-module="social">
+                        <span class="nav-icon">💬</span>
+                        <span class="nav-label">SOCIAL WALL</span>
+                    </button>
+                    <button class="nav-item" data-module="blog">
+                        <span class="nav-icon">📰</span>
+                        <span class="nav-label">BLOG</span>
+                    </button>
+                    <button class="nav-item" data-module="leaderboard">
+                        <span class="nav-icon">🏆</span>
+                        <span class="nav-label">CLASSIFICA</span>
+                    </button>
+                </nav>
+                <div class="sidebar-footer">
+                    <div class="connection-status">
+                        <span class="status-dot" id="connectionStatus"></span>
+                        <span class="status-text">CONNESSO</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Content Modules -->
+            <main class="content-area">
+                <!-- LUNOPOLY Module -->
+                <section id="lunopolyModule" class="module active">
+                    <div class="module-header">
+                        <h2>🎲 LUNOPOLY - Monopoli Blockchain</h2>
+                        <p class="module-description">Tabellone a 24 caselle con 4 Bot Conservatori</p>
+                    </div>
+                    <div class="game-container">
+                        <div class="game-board" id="gameBoard">
+                            <!-- Il tabellone verrà generato dinamicamente -->
+                        </div>
+                        <div class="game-controls">
+                            <div class="game-info">
+                                <h3>Informazioni Partita</h3>
+                                <div class="info-item">
+                                    <span>Posizione:</span>
+                                    <span id="playerPosition">0</span>
+                                </div>
+                                <div class="info-item">
+                                    <span>Turno:</span>
+                                    <span id="currentTurn">In attesa...</span>
+                                </div>
+                            </div>
+                            <button id="rollDiceBtn" class="cyber-button action-btn">
+                                <span>LANCIA DADI</span>
+                            </button>
+                            <div id="diceResult" class="dice-result"></div>
+                            <div class="timer-display">
+                                <span>Timer Automatico:</span>
+                                <span id="turnTimer">10s</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="game-log" id="gameLog">
+                        <h3>Log Eventi</h3>
+                        <div id="gameLogContent"></div>
+                    </div>
+                </section>
+
+                <!-- SOCIAL WALL Module -->
+                <section id="socialModule" class="module">
+                    <div class="module-header">
+                        <h2>💬 SOCIAL WALL - Chat in Tempo Reale</h2>
+                        <p class="module-description">Ogni messaggio costa 1 Credito LUNC</p>
+                    </div>
+                    <div class="social-container">
+                        <div class="messages-area" id="messagesArea">
+                            <!-- Messaggi verranno aggiunti qui -->
+                        </div>
+                        <div class="message-input-area">
+                            <input type="text" id="messageInput" placeholder="Scrivi un messaggio (costo: 1 Credito)..." maxlength="500">
+                            <button id="sendMessageBtn" class="cyber-button">
+                                <span>INVIA</span>
+                            </button>
+                        </div>
+                        <div id="chatError" class="error-message"></div>
+                    </div>
+                </section>
+
+                <!-- BLOG Module -->
+                <section id="blogModule" class="module">
+                    <div class="module-header">
+                        <h2>📰 BLOG - Rendite Digitali</h2>
+                        <p class="module-description">Feed da renditedigitali.blogspot.com</p>
+                    </div>
+                    <div class="blog-container" id="blogContainer">
+                        <div class="loading">Caricamento feed...</div>
+                    </div>
+                </section>
+
+                <!-- LEADERBOARD Module -->
+                <section id="leaderboardModule" class="module">
+                    <div class="module-header">
+                        <h2>🏆 CLASSIFICA - Top Players</h2>
+                        <p class="module-description">I migliori giocatori per Crediti LUNC</p>
+                    </div>
+                    <div class="leaderboard-container">
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>POSIZIONE</th>
+                                    <th>USERNAME</th>
+                                    <th>CREDITI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboardBody">
+                                <!-- Leaderboard data -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+    <script src="modules/lunopoly.js"></script>
+    <script src="modules/social.js"></script>
+    <script src="modules/blog.js"></script>
+</body>
+</html>
