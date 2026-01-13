@@ -138,10 +138,10 @@ app.get('/api/user/:id', async (req, res) => {
   }
 });
 
-// Get leaderboard
+// Get leaderboard (points-based for Social-to-Earn)
 app.get('/api/leaderboard', async (req, res) => {
   try {
-    const leaderboard = await db.getLeaderboard(10);
+    const leaderboard = await db.getLeaderboardByPoints(10);
     res.json(leaderboard);
   } catch (error) {
     res.status(500).json({ error: 'Errore recupero classifica' });
@@ -282,6 +282,101 @@ app.get('/api/apr/distributions', async (req, res) => {
   }
 });
 
+// ================================
+// SOCIAL-TO-EARN ENDPOINTS
+// ================================
+
+// Verify and record social action
+app.post('/api/social/verify-action', async (req, res) => {
+  try {
+    const { userId, actionType, link } = req.body;
+
+    if (!userId || !actionType) {
+      return res.status(400).json({ error: 'userId e actionType richiesti' });
+    }
+
+    // Check if action exists
+    if (!db.SOCIAL_REWARDS[actionType]) {
+      return res.status(400).json({ error: 'Tipo di azione non valido' });
+    }
+
+    const result = await db.recordSocialAction(userId, actionType, link);
+
+    // Broadcast to all clients
+    io.emit('social:action', {
+      userId,
+      actionType,
+      pointsEarned: result.pointsEarned
+    });
+
+    res.json({
+      success: true,
+      message: `Azione completata! +${result.pointsEarned} Punti`,
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Social action error:', error);
+    res.status(400).json({ error: error.message || 'Errore durante la verifica dell\'azione' });
+  }
+});
+
+// Get user's social actions history
+app.get('/api/social/actions/:userId', async (req, res) => {
+  try {
+    const actions = await db.getUserSocialActions(req.params.userId);
+    res.json(actions);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore recupero azioni social' });
+  }
+});
+
+// Get leaderboard by points (Social-to-Earn)
+app.get('/api/social/leaderboard', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const leaderboard = await db.getLeaderboardByPoints(limit);
+    res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore recupero classifica punti' });
+  }
+});
+
+// Get available social rewards
+app.get('/api/social/rewards', (req, res) => {
+  res.json(db.SOCIAL_REWARDS);
+});
+
+// Manual points reset (admin endpoint)
+app.post('/api/social/reset-points', async (req, res) => {
+  try {
+    const result = await db.resetAllPoints();
+
+    // Broadcast reset to all clients
+    io.emit('social:points-reset', result);
+
+    res.json({
+      success: true,
+      message: 'Reset punti completato',
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Points reset error:', error);
+    res.status(500).json({ error: 'Errore reset punti' });
+  }
+});
+
+// Check monthly reset status
+app.get('/api/social/reset-status', async (req, res) => {
+  try {
+    const status = await db.checkMonthlyReset();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore verifica reset' });
+  }
+});
+
 // Get blog feed (proxy to avoid CORS)
 app.get('/api/blog/feed', async (req, res) => {
   try {
@@ -331,8 +426,8 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Deduct 1 credit
-      await db.updateCredits(socket.userId, -1);
+      // Record social action (Social-to-Earn: +10 points, costs 1 credit)
+      const socialResult = await db.recordSocialAction(socket.userId, 'social_wall_message', null);
 
       // Save message
       const savedMessage = await db.saveMessage(socket.userId, user.username, data.message);
@@ -342,15 +437,27 @@ io.on('connection', (socket) => {
         id: savedMessage.id,
         username: user.username,
         message: data.message,
-        timestamp: savedMessage.timestamp
+        timestamp: savedMessage.timestamp,
+        pointsEarned: socialResult.pointsEarned
       });
 
-      // Send updated credits to sender
-      socket.emit('credits:updated', { crediti: user.crediti - 1 });
+      // Send updated credits and points to sender
+      socket.emit('credits:updated', {
+        crediti: socialResult.newCredits,
+        punti_classifica: socialResult.newPoints
+      });
+
+      // Broadcast social action
+      io.emit('social:action', {
+        userId: socket.userId,
+        username: user.username,
+        actionType: 'social_wall_message',
+        pointsEarned: socialResult.pointsEarned
+      });
 
     } catch (error) {
       console.error('Chat message error:', error);
-      socket.emit('chat:error', { message: 'Errore invio messaggio' });
+      socket.emit('chat:error', { message: error.message || 'Errore invio messaggio' });
     }
   });
 
@@ -445,10 +552,32 @@ const startServer = async () => {
     await initializeProperties();
     await initializeBots();
 
+    // Check for monthly reset on startup
+    const resetStatus = await db.checkMonthlyReset();
+    if (resetStatus.resetPerformed) {
+      console.log('📊 Monthly points reset performed:', resetStatus.usersReset, 'users');
+    } else if (resetStatus.daysRemaining) {
+      console.log(`📊 Next monthly reset in ${resetStatus.daysRemaining} days`);
+    }
+
+    // Check for monthly reset every 24 hours
+    setInterval(async () => {
+      try {
+        const status = await db.checkMonthlyReset();
+        if (status.resetPerformed) {
+          console.log('📊 Automatic monthly points reset performed');
+          io.emit('social:points-reset', status);
+        }
+      } catch (error) {
+        console.error('Monthly reset check error:', error);
+      }
+    }, 24 * 60 * 60 * 1000); // Every 24 hours
+
     server.listen(PORT, () => {
       console.log(`🚀 LUNC HORIZON Server running on http://localhost:${PORT}`);
       console.log(`📊 Database: lunc_horizon.db`);
       console.log(`🎮 Bots initialized: ${gameState.bots.length}`);
+      console.log(`🎯 Social-to-Earn: ACTIVE`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

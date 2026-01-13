@@ -151,6 +151,12 @@ function updateUserDisplay() {
         usernameDisplay.textContent = currentUser.username;
         creditsDisplay.textContent = currentUser.crediti || 0;
 
+        // Update points display
+        const puntiDisplay = document.getElementById('puntiDisplay');
+        if (puntiDisplay) {
+            puntiDisplay.textContent = currentUser.punti_classifica || 0;
+        }
+
         // Update capital display
         const capital = currentUser.total_deposited_lunc || 0;
         const capitalDisplayElement = document.getElementById('capitalDisplay');
@@ -193,6 +199,16 @@ function initializeSocket() {
         if (currentUser) {
             currentUser.crediti = data.crediti;
             creditsDisplay.textContent = data.crediti;
+
+            // Update points if provided
+            if (data.punti_classifica !== undefined) {
+                currentUser.punti_classifica = data.punti_classifica;
+                const puntiDisplay = document.getElementById('puntiDisplay');
+                if (puntiDisplay) {
+                    puntiDisplay.textContent = data.punti_classifica;
+                }
+            }
+
             localStorage.setItem('luncHorizonUser', JSON.stringify(currentUser));
         }
     });
@@ -267,6 +283,8 @@ function switchModule(moduleName) {
             initializeLunopoly();
         } else if (moduleName === 'social' && typeof initializeSocial === 'function') {
             initializeSocial();
+        } else if (moduleName === 'socialearn' && typeof initializeSocialEarn === 'function') {
+            initializeSocialEarn();
         } else if (moduleName === 'blog' && typeof loadBlogFeed === 'function') {
             loadBlogFeed();
         } else if (moduleName === 'leaderboard') {
@@ -294,7 +312,7 @@ async function loadLeaderboard() {
             tr.innerHTML = `
                 <td class="${rankClass}">#${index + 1}</td>
                 <td class="${rankClass}">${entry.username}</td>
-                <td class="${rankClass}">${entry.crediti} Crediti</td>
+                <td class="${rankClass}">${entry.punti_classifica} Punti</td>
             `;
 
             tbody.appendChild(tr);
