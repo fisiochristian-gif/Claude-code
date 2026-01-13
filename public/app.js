@@ -334,10 +334,9 @@ function switchPage(pageName) {
 
         case 'mission':
             if (missionPage) missionPage.classList.add('active');
-            // Initialize socialearn tab by default
-            const missionTabs = missionPage.querySelector('.page-tabs');
-            if (missionTabs) {
-                switchTab(missionPage, 'socialearn');
+            // Initialize Mission Control (Blog + Social-to-Earn + Leaderboard)
+            if (typeof initializeMissionControl === 'function') {
+                initializeMissionControl();
             }
             break;
     }

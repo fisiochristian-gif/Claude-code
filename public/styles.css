@@ -1732,3 +1732,381 @@ body::before {
         font-size: 0.8rem;
     }
 }
+
+/* ================================
+   GAME ACTION BUTTONS
+   ================================ */
+
+.action-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+    margin: 1rem 0;
+}
+
+.action-button-small {
+    background: linear-gradient(135deg, var(--accent-gold-dark), var(--accent-gold));
+    color: var(--primary-dark);
+    border: none;
+    border-radius: 6px;
+    padding: 0.7rem 1rem;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.action-button-small:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.action-button-small:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.board-cell.selected {
+    border: 3px solid var(--accent-cyan) !important;
+    box-shadow: 0 0 20px var(--accent-cyan);
+    transform: scale(1.05);
+}
+
+/* ================================
+   MISSION CONTROL 3-PANEL LAYOUT
+   ================================ */
+
+.mission-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.mission-panel-left,
+.mission-panel-right {
+    background: rgba(26, 31, 58, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    min-height: 600px;
+}
+
+.panel-header h3 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--accent-gold);
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+/* Blog Iframe */
+.blog-iframe-container {
+    width: 100%;
+    height: 550px;
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+#blogIframe {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--primary-dark);
+}
+
+.iframe-error {
+    text-align: center;
+    padding: 3rem;
+}
+
+.iframe-error h3 {
+    color: var(--accent-gold);
+    margin-bottom: 1rem;
+}
+
+.iframe-error p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+/* Social-to-Earn Tasks Panel */
+.tasks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.task-section {
+    background: rgba(10, 14, 39, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.task-section h4 {
+    color: var(--accent-gold);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    margin-bottom: 0.8rem;
+}
+
+.task-button {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent-gold-dark), var(--accent-gold));
+    color: var(--primary-dark);
+    border: none;
+    border-radius: 6px;
+    padding: 0.8rem;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.task-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.task-input-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+}
+
+.task-input {
+    flex: 1;
+    background: rgba(10, 14, 39, 0.8);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.7rem;
+    color: var(--text-primary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem;
+}
+
+.task-input:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+}
+
+.task-button-small {
+    background: linear-gradient(135deg, var(--accent-gold-dark), var(--accent-gold));
+    color: var(--primary-dark);
+    border: none;
+    border-radius: 6px;
+    padding: 0.7rem 1rem;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+.task-button-small:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+}
+
+.task-history {
+    background: rgba(10, 14, 39, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.task-history h4 {
+    color: var(--accent-gold);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    margin-bottom: 0.8rem;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Mission Control Leaderboard Bottom Panel */
+.mission-panel-bottom {
+    background: rgba(26, 31, 58, 0.6);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.mission-leaderboard .leaderboard-header h3 {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--accent-gold);
+    font-size: 1.5rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.mission-leaderboard .leaderboard-notice {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.leaderboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.leaderboard-entry {
+    background: rgba(10, 14, 39, 0.8);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+}
+
+.leaderboard-entry:hover {
+    border-color: var(--accent-gold);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-gold);
+}
+
+.leaderboard-entry.rank-1 {
+    border-color: var(--accent-gold);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.05));
+}
+
+.leaderboard-entry.rank-2 {
+    border-color: #c0c0c0;
+}
+
+.leaderboard-entry.rank-3 {
+    border-color: #cd7f32;
+}
+
+.rank-badge {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--accent-gold);
+    min-width: 40px;
+    text-align: center;
+}
+
+.player-info {
+    flex: 1;
+}
+
+.player-name {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin-bottom: 0.3rem;
+}
+
+.player-id {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.player-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+}
+
+.stat-points {
+    color: var(--accent-gold);
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.stat-credits {
+    color: var(--accent-cyan);
+    font-size: 0.9rem;
+}
+
+/* ================================
+   SOCIAL WALL MESSAGE ENHANCEMENTS
+   ================================ */
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.message-user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.message-id {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: 'Courier New', monospace;
+}
+
+.message-username.own-message {
+    color: var(--accent-cyan) !important;
+}
+
+.message-points {
+    margin-top: 0.5rem;
+    padding: 0.3rem 0.6rem;
+    background: rgba(255, 215, 0, 0.1);
+    border-radius: 12px;
+    color: var(--accent-gold);
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: inline-block;
+}
+
+.no-messages {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 3rem;
+    font-size: 1rem;
+}
+
+/* ================================
+   RESPONSIVE - MISSION CONTROL
+   ================================ */
+
+@media (max-width: 1024px) {
+    .mission-panels {
+        grid-template-columns: 1fr;
+    }
+
+    .action-buttons-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .leaderboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .task-input-group {
+        flex-direction: column;
+    }
+
+    .task-button-small {
+        width: 100%;
+    }
+}

@@ -311,9 +311,26 @@
                                 </div>
                             </div>
                             <button id="rollDiceBtn" class="cyber-button action-btn">
-                                <span>LANCIA DADI</span>
+                                <span>🎲 LANCIA DADI</span>
                             </button>
+
                             <div id="diceResult" class="dice-result"></div>
+
+                            <div class="action-buttons-grid">
+                                <button id="buyBtn" class="action-button-small">
+                                    <span>💰 COMPRA</span>
+                                </button>
+                                <button id="auctionBtn" class="action-button-small">
+                                    <span>🔨 ASTA</span>
+                                </button>
+                                <button id="tradeBtn" class="action-button-small">
+                                    <span>🤝 SCAMBIA</span>
+                                </button>
+                                <button id="endTurnBtn" class="action-button-small">
+                                    <span>⏭️ FINE TURNO</span>
+                                </button>
+                            </div>
+
                             <div class="timer-display">
                                 <span>Timer Automatico:</span>
                                 <span id="turnTimer">10s</span>
@@ -379,157 +396,100 @@
         <!-- MISSION CONTROL Page -->
         <div id="missionPage" class="page-container">
             <div class="page-content">
-                <div class="page-tabs">
-                    <button class="tab-button active" data-tab="socialearn">🎯 SOCIAL-TO-EARN</button>
-                    <button class="tab-button" data-tab="blog">📰 BLOG</button>
+                <div class="module-header">
+                    <h2>📈 MISSION CONTROL</h2>
+                    <p class="module-description">Blog, Social-to-Earn Tasks & Monthly Leaderboard</p>
                 </div>
 
-                <!-- Social-to-Earn Tab -->
-                <div id="socialearnTab" class="tab-content active">
-                    <div class="module-header">
-                        <h2>🎯 SOCIAL-TO-EARN - Guadagna Punti</h2>
-                        <p class="module-description">Completa azioni social per guadagnare punti e scalare la classifica</p>
-                    </div>
-
-                    <!-- Rewards Table -->
-                    <div class="rewards-explanation">
-                        <h3>📊 Tabella Premi</h3>
-                        <div class="rewards-grid">
-                            <div class="reward-item">
-                                <span class="reward-icon">📰</span>
-                                <span class="reward-name">Follow Blog</span>
-                                <span class="reward-points">+500 Punti</span>
-                                <span class="reward-cost free">Gratis (Una volta)</span>
-                            </div>
-                            <div class="reward-item">
-                                <span class="reward-icon">💬</span>
-                                <span class="reward-name">Comment Blog</span>
-                                <span class="reward-points">+50 Punti</span>
-                                <span class="reward-cost paid">Costo: 5 Crediti</span>
-                            </div>
-                            <div class="reward-item">
-                                <span class="reward-icon">💬</span>
-                                <span class="reward-name">Social Wall Message</span>
-                                <span class="reward-points">+10 Punti</span>
-                                <span class="reward-cost paid">Costo: 1 Credito</span>
-                            </div>
-                            <div class="reward-item">
-                                <span class="reward-icon">🐦</span>
-                                <span class="reward-name">X Follow</span>
-                                <span class="reward-points">+300 Punti</span>
-                                <span class="reward-cost free">Gratis (Una volta)</span>
-                            </div>
-                            <div class="reward-item">
-                                <span class="reward-icon">❤️</span>
-                                <span class="reward-name">X Like</span>
-                                <span class="reward-points">+30 Punti</span>
-                                <span class="reward-cost paid">Costo: 2 Crediti</span>
-                            </div>
-                            <div class="reward-item">
-                                <span class="reward-icon">🔄</span>
-                                <span class="reward-name">X Repost</span>
-                                <span class="reward-points">+200 Punti</span>
-                                <span class="reward-cost paid">Costo: 10 Crediti</span>
-                            </div>
-                            <div class="reward-item">
-                                <span class="reward-icon">🤖</span>
-                                <span class="reward-name">Reddit Join</span>
-                                <span class="reward-points">+400 Punti</span>
-                                <span class="reward-cost free">Gratis (Una volta)</span>
-                            </div>
-                            <div class="reward-item">
-                                <span class="reward-icon">⬆️</span>
-                                <span class="reward-name">Reddit Upvote</span>
-                                <span class="reward-points">+40 Punti</span>
-                                <span class="reward-cost paid">Costo: 2 Crediti</span>
-                            </div>
-                            <div class="reward-item">
-                                <span class="reward-icon">🎁</span>
-                                <span class="reward-name">Referral Code</span>
-                                <span class="reward-points">+1000 Punti</span>
-                                <span class="reward-cost free">Gratis</span>
-                            </div>
+                <!-- 3-PANEL LAYOUT: Blog Left + Tasks Right -->
+                <div class="mission-panels">
+                    <!-- LEFT PANEL: Blog Iframe -->
+                    <div class="mission-panel-left" id="blogPanel">
+                        <div class="panel-header">
+                            <h3>📰 BLOG - Rendite Digitali</h3>
+                        </div>
+                        <div class="blog-iframe-container">
+                            <iframe id="blogIframe"
+                                    title="Rendite Digitali Blog"
+                                    frameborder="0"
+                                    allowfullscreen>
+                            </iframe>
                         </div>
                     </div>
 
-                    <!-- Actions Panel -->
-                    <div class="social-earn-panel">
-                        <h3>🎯 Completa Azioni</h3>
-
-                        <!-- Blog Actions -->
-                        <div class="action-category">
-                            <h4>📰 Blog Actions</h4>
-                            <div class="action-row">
-                                <button id="followBlogBtn" class="action-button">
-                                    <span>📰 Follow Blog (+500)</span>
-                                </button>
-                            </div>
-                            <div class="action-row">
-                                <input type="text" id="commentBlogLink" placeholder="Inserisci link al commento sul blog..." class="action-input">
-                                <button id="commentBlogBtn" class="action-button">
-                                    <span>💬 Comment Blog (+50)</span>
-                                </button>
-                            </div>
+                    <!-- RIGHT PANEL: Social-to-Earn Tasks -->
+                    <div class="mission-panel-right" id="tasksPanel">
+                        <div class="panel-header">
+                            <h3>🎯 SOCIAL-TO-EARN TASKS</h3>
                         </div>
 
-                        <!-- X (Twitter) Actions -->
-                        <div class="action-category">
-                            <h4>🐦 X (Twitter) Actions</h4>
-                            <div class="action-row">
-                                <button id="xFollowBtn" class="action-button">
-                                    <span>🐦 Follow X Account (+300)</span>
+                        <div class="tasks-container">
+                            <!-- Blog Actions -->
+                            <div class="task-section">
+                                <h4>📰 Blog Actions</h4>
+                                <button id="followBlogBtn" class="task-button">
+                                    📰 Follow Blog (+500) - GRATIS
                                 </button>
+                                <div class="task-input-group">
+                                    <input type="text" id="commentBlogLink" placeholder="Link commento blog..." class="task-input">
+                                    <button id="commentBlogBtn" class="task-button-small">
+                                        💬 Comment (+50) - 5⚡
+                                    </button>
+                                </div>
                             </div>
-                            <div class="action-row">
-                                <input type="text" id="xLikeLink" placeholder="Inserisci link al like su X..." class="action-input">
-                                <button id="xLikeBtn" class="action-button">
-                                    <span>❤️ Like Post X (+30)</span>
-                                </button>
-                            </div>
-                            <div class="action-row">
-                                <input type="text" id="xRepostLink" placeholder="Inserisci link al repost su X..." class="action-input">
-                                <button id="xRepostBtn" class="action-button">
-                                    <span>🔄 Repost X (+200)</span>
-                                </button>
-                            </div>
-                        </div>
 
-                        <!-- Reddit Actions -->
-                        <div class="action-category">
-                            <h4>🤖 Reddit Actions</h4>
-                            <div class="action-row">
-                                <button id="redditJoinBtn" class="action-button">
-                                    <span>🤖 Join Subreddit (+400)</span>
+                            <!-- X (Twitter) Actions -->
+                            <div class="task-section">
+                                <h4>🐦 X (Twitter) Actions</h4>
+                                <button id="xFollowBtn" class="task-button">
+                                    🐦 Follow X (+300) - GRATIS
                                 </button>
+                                <div class="task-input-group">
+                                    <input type="text" id="xLikeLink" placeholder="Link post X..." class="task-input">
+                                    <button id="xLikeBtn" class="task-button-small">
+                                        ❤️ Like (+30) - 2⚡
+                                    </button>
+                                </div>
+                                <div class="task-input-group">
+                                    <input type="text" id="xRepostLink" placeholder="Link repost X..." class="task-input">
+                                    <button id="xRepostBtn" class="task-button-small">
+                                        🔄 Repost (+200) - 10⚡
+                                    </button>
+                                </div>
                             </div>
-                            <div class="action-row">
-                                <input type="text" id="redditUpvoteLink" placeholder="Inserisci link all'upvote su Reddit..." class="action-input">
-                                <button id="redditUpvoteBtn" class="action-button">
-                                    <span>⬆️ Upvote Reddit (+40)</span>
+
+                            <!-- Reddit Actions -->
+                            <div class="task-section">
+                                <h4>🤖 Reddit Actions</h4>
+                                <button id="redditJoinBtn" class="task-button">
+                                    🤖 Join Subreddit (+400) - GRATIS
                                 </button>
+                                <div class="task-input-group">
+                                    <input type="text" id="redditUpvoteLink" placeholder="Link upvote Reddit..." class="task-input">
+                                    <button id="redditUpvoteBtn" class="task-button-small">
+                                        ⬆️ Upvote (+40) - 2⚡
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div id="socialEarnStatus" class="status-message"></div>
-                    </div>
+                            <!-- Status Message -->
+                            <div id="missionStatus" class="status-message"></div>
 
-                    <!-- Actions History -->
-                    <div class="actions-history">
-                        <h3>📜 Le Tue Azioni Recenti</h3>
-                        <div id="socialActionsHistory" class="actions-list">
-                            <div class="loading">Caricamento...</div>
+                            <!-- User Actions History -->
+                            <div class="task-history">
+                                <h4>📜 Le Tue Azioni Recenti</h4>
+                                <div id="socialActionsHistory" class="history-list">
+                                    <div class="loading">Caricamento...</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Blog Tab -->
-                <div id="blogTab" class="tab-content">
-                    <div class="module-header">
-                        <h2>📰 BLOG - Rendite Digitali</h2>
-                        <p class="module-description">Feed da renditedigitali.blogspot.com</p>
-                    </div>
-                    <div class="blog-container" id="blogContainer">
-                        <div class="loading">Caricamento feed...</div>
+                <!-- BOTTOM PANEL: Monthly Leaderboard -->
+                <div class="mission-panel-bottom">
+                    <div id="missionLeaderboard" class="mission-leaderboard">
+                        <div class="loading">Caricamento classifica...</div>
                     </div>
                 </div>
             </div>
@@ -540,9 +500,8 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
     <script src="modules/dashboard.js"></script>
-    <script src="modules/lunopoly.js"></script>
+    <script src="modules/game.js"></script>
     <script src="modules/social.js"></script>
-    <script src="modules/social-earn.js"></script>
-    <script src="modules/blog.js"></script>
+    <script src="modules/mission.js"></script>
 </body>
 </html>

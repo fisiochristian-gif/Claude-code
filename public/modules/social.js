@@ -1,6 +1,7 @@
 // ================================
 // SOCIAL WALL MODULE
-// Real-time chat with 1 Credit per message
+// Real-time chat with Socket.io
+// Cost: 1 Credit per message | Reward: +10 Points
 // ================================
 
 // DOM Elements
@@ -20,20 +21,24 @@ function initializeSocial() {
 
     if (!chatInitialized) {
         setupChatEvents();
-        loadChatHistory();
+        loadChatHistoryFromServer();
         chatInitialized = true;
     }
 }
 
 function setupChatEvents() {
-    sendMessageBtn.addEventListener('click', sendMessage);
+    if (sendMessageBtn) {
+        sendMessageBtn.addEventListener('click', sendMessage);
+    }
 
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
 }
 
 // ================================
@@ -65,7 +70,7 @@ function sendMessage() {
 
     // Check credits
     if (window.app.currentUser.crediti < 1) {
-        showChatError('Crediti insufficienti! Necessario: 1 Credito');
+        showChatError('❌ Crediti insufficienti! Necessario: 1 Credito');
         return;
     }
 
@@ -79,17 +84,27 @@ function sendMessage() {
 function handleChatMessage(data) {
     console.log('💬 New message:', data);
 
+    if (!messagesArea) return;
+
     const messageDiv = document.createElement('div');
-    messageDiv.className = 'message';
+    messageDiv.className = 'message-item';
 
     const isOwnMessage = window.app.currentUser && data.username === window.app.currentUser.username;
 
+    // Get ID Univoco (shortened)
+    const userId = data.userId || data.user_id || '---';
+    const shortId = userId.substring(0, 8);
+
     messageDiv.innerHTML = `
         <div class="message-header">
-            <span class="message-username" style="${isOwnMessage ? 'color: #00ffff;' : ''}">${data.username}</span>
-            <span class="message-timestamp">${window.app.formatTimestamp(data.timestamp)}</span>
+            <div class="message-user-info">
+                <span class="message-username ${isOwnMessage ? 'own-message' : ''}">${escapeHtml(data.username)}</span>
+                <span class="message-id">[ID: ${shortId}]</span>
+            </div>
+            <span class="message-time">${window.app.formatTimestamp(data.timestamp)}</span>
         </div>
-        <div class="message-content">${escapeHtml(data.message)}</div>
+        <div class="message-text">${escapeHtml(data.message)}</div>
+        ${data.pointsEarned ? `<div class="message-points">+${data.pointsEarned} Punti 🎯</div>` : ''}
     `;
 
     messagesArea.appendChild(messageDiv);
@@ -104,22 +119,36 @@ function handleChatMessage(data) {
 }
 
 function loadChatHistory(messages) {
-    console.log('📜 Loading chat history:', messages.length);
+    console.log('📜 Loading chat history:', messages ? messages.length : 0);
+
+    if (!messagesArea) return;
 
     messagesArea.innerHTML = '';
 
+    if (!messages || messages.length === 0) {
+        messagesArea.innerHTML = '<div class="no-messages">Nessun messaggio. Inizia la conversazione!</div>';
+        return;
+    }
+
     messages.forEach(msg => {
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'message';
+        messageDiv.className = 'message-item';
 
         const isOwnMessage = window.app.currentUser && msg.username === window.app.currentUser.username;
 
+        // Get ID Univoco (shortened)
+        const userId = msg.user_id || '---';
+        const shortId = userId.substring(0, 8);
+
         messageDiv.innerHTML = `
             <div class="message-header">
-                <span class="message-username" style="${isOwnMessage ? 'color: #00ffff;' : ''}">${msg.username}</span>
-                <span class="message-timestamp">${window.app.formatTimestamp(msg.timestamp)}</span>
+                <div class="message-user-info">
+                    <span class="message-username ${isOwnMessage ? 'own-message' : ''}">${escapeHtml(msg.username)}</span>
+                    <span class="message-id">[ID: ${shortId}]</span>
+                </div>
+                <span class="message-time">${window.app.formatTimestamp(msg.timestamp)}</span>
             </div>
-            <div class="message-content">${escapeHtml(msg.message)}</div>
+            <div class="message-text">${escapeHtml(msg.message)}</div>
         `;
 
         messagesArea.appendChild(messageDiv);
@@ -130,7 +159,7 @@ function loadChatHistory(messages) {
 }
 
 function loadChatHistoryFromServer() {
-    if (window.app.socket) {
+    if (window.app && window.app.socket) {
         window.app.socket.emit('chat:history');
     }
 }
@@ -140,6 +169,8 @@ function loadChatHistoryFromServer() {
 // ================================
 
 function showChatError(message) {
+    if (!chatError) return;
+
     chatError.textContent = message;
     chatError.classList.add('show');
 
@@ -162,11 +193,15 @@ window.initializeSocial = initializeSocial;
 window.handleChatMessage = handleChatMessage;
 window.loadChatHistory = loadChatHistory;
 
-// Auto-load history when socket connects
+// Auto-reload history when socket connects
 if (window.app && window.app.socket) {
     window.app.socket.on('connect', () => {
         if (chatInitialized) {
             loadChatHistoryFromServer();
         }
+    });
+
+    window.app.socket.on('chat:history', (messages) => {
+        loadChatHistory(messages);
     });
 }
