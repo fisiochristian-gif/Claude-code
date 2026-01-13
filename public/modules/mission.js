@@ -69,95 +69,177 @@ function initializeBlogIframe() {
 function initializeSocialTasks() {
     console.log('🎯 Initializing Social-to-Earn tasks...');
 
-    setupTaskButtons();
+    renderMissionCards();
     loadUserSocialActions();
 }
 
-function setupTaskButtons() {
-    // Blog Actions
-    const followBlogBtn = document.getElementById('followBlogBtn');
-    const commentBlogBtn = document.getElementById('commentBlogBtn');
-    const commentBlogLink = document.getElementById('commentBlogLink');
+function renderMissionCards() {
+    const tasksContainer = document.querySelector('.tasks-container');
+    if (!tasksContainer) return;
 
-    // X (Twitter) Actions
-    const xFollowBtn = document.getElementById('xFollowBtn');
-    const xLikeBtn = document.getElementById('xLikeBtn');
-    const xLikeLink = document.getElementById('xLikeLink');
-    const xRepostBtn = document.getElementById('xRepostBtn');
-    const xRepostLink = document.getElementById('xRepostLink');
+    // Mission Cards Configuration
+    const missions = [
+        {
+            id: 'follow_blog',
+            icon: '📰',
+            title: 'Follow Blog',
+            description: 'Segui il blog "Rendite Digitali" per ricevere punti bonus (azione unica)',
+            points: socialRewards.follow_blog?.points || 500,
+            cost: socialRewards.follow_blog?.credits || 0,
+            requiresInput: false,
+            externalLink: 'https://renditedigitali.blogspot.com',
+            placeholder: null
+        },
+        {
+            id: 'comment_blog',
+            icon: '💬',
+            title: 'Comment Blog',
+            description: 'Lascia un commento su un post del blog e inserisci il link al commento',
+            points: socialRewards.comment_blog?.points || 50,
+            cost: socialRewards.comment_blog?.credits || 5,
+            requiresInput: true,
+            externalLink: 'https://renditedigitali.blogspot.com',
+            placeholder: 'https://renditedigitali.blogspot.com/...'
+        },
+        {
+            id: 'x_follow',
+            icon: '🐦',
+            title: 'Follow su X',
+            description: 'Segui l\'account X (Twitter) ufficiale per ricevere punti bonus (azione unica)',
+            points: socialRewards.x_follow?.points || 300,
+            cost: socialRewards.x_follow?.credits || 0,
+            requiresInput: false,
+            externalLink: 'https://x.com/LUNC_HORIZON',
+            placeholder: null
+        },
+        {
+            id: 'x_like',
+            icon: '❤️',
+            title: 'Like su X',
+            description: 'Metti like ad un post su X e inserisci il link al post',
+            points: socialRewards.x_like?.points || 30,
+            cost: socialRewards.x_like?.credits || 2,
+            requiresInput: true,
+            externalLink: 'https://x.com/LUNC_HORIZON',
+            placeholder: 'https://x.com/...'
+        },
+        {
+            id: 'x_repost',
+            icon: '🔄',
+            title: 'Repost su X',
+            description: 'Fai repost di un post su X e inserisci il link al tuo repost',
+            points: socialRewards.x_repost?.points || 200,
+            cost: socialRewards.x_repost?.credits || 10,
+            requiresInput: true,
+            externalLink: 'https://x.com/LUNC_HORIZON',
+            placeholder: 'https://x.com/...'
+        },
+        {
+            id: 'reddit_join',
+            icon: '🤖',
+            title: 'Join Subreddit',
+            description: 'Unisciti al subreddit ufficiale per ricevere punti bonus (azione unica)',
+            points: socialRewards.reddit_join?.points || 400,
+            cost: socialRewards.reddit_join?.credits || 0,
+            requiresInput: false,
+            externalLink: 'https://reddit.com/r/LuncHorizon',
+            placeholder: null
+        },
+        {
+            id: 'reddit_upvote',
+            icon: '⬆️',
+            title: 'Upvote su Reddit',
+            description: 'Dai upvote ad un post su Reddit e inserisci il link al post',
+            points: socialRewards.reddit_upvote?.points || 40,
+            cost: socialRewards.reddit_upvote?.credits || 2,
+            requiresInput: true,
+            externalLink: 'https://reddit.com/r/LuncHorizon',
+            placeholder: 'https://reddit.com/r/...'
+        }
+    ];
 
-    // Reddit Actions
-    const redditJoinBtn = document.getElementById('redditJoinBtn');
-    const redditUpvoteBtn = document.getElementById('redditUpvoteBtn');
-    const redditUpvoteLink = document.getElementById('redditUpvoteLink');
+    tasksContainer.innerHTML = missions.map(mission => `
+        <div class="mission-card" data-mission-id="${mission.id}">
+            <div class="mission-card-header">
+                <div class="mission-card-title">
+                    <span>${mission.icon}</span>
+                    <span>${mission.title}</span>
+                </div>
+                <div class="mission-card-rewards">
+                    <span class="reward-points">+${mission.points} 🎯</span>
+                    <span class="reward-cost ${mission.cost === 0 ? 'free' : ''}">${mission.cost === 0 ? 'GRATIS' : mission.cost + ' ⚡'}</span>
+                </div>
+            </div>
+            <div class="mission-card-body">
+                <p class="mission-card-description">${mission.description}</p>
+                ${mission.requiresInput ? `
+                    <input
+                        type="text"
+                        class="mission-card-input"
+                        id="${mission.id}_input"
+                        placeholder="${mission.placeholder}"
+                    >
+                    <button class="mission-card-button" onclick="handleMissionVerify('${mission.id}')">
+                        ✅ VERIFICA
+                    </button>
+                ` : `
+                    <a href="${mission.externalLink}" target="_blank" class="mission-card-link">
+                        🔗 VAI AL SITO
+                    </a>
+                    <button class="mission-card-button" onclick="handleMissionVerify('${mission.id}')" style="margin-top: 0.8rem;">
+                        ✅ VERIFICA
+                    </button>
+                `}
+            </div>
+        </div>
+    `).join('');
 
-    // Event Listeners
-    if (followBlogBtn) {
-        followBlogBtn.addEventListener('click', () => performSocialAction('follow_blog', null));
-    }
-
-    if (commentBlogBtn && commentBlogLink) {
-        commentBlogBtn.addEventListener('click', () => {
-            const link = commentBlogLink.value.trim();
-            if (!link) {
-                showMissionStatus('❌ Inserisci il link al commento', 'error');
-                return;
-            }
-            performSocialAction('comment_blog', link);
-        });
-    }
-
-    if (xFollowBtn) {
-        xFollowBtn.addEventListener('click', () => performSocialAction('x_follow', null));
-    }
-
-    if (xLikeBtn && xLikeLink) {
-        xLikeBtn.addEventListener('click', () => {
-            const link = xLikeLink.value.trim();
-            if (!link) {
-                showMissionStatus('❌ Inserisci il link al post', 'error');
-                return;
-            }
-            performSocialAction('x_like', link);
-        });
-    }
-
-    if (xRepostBtn && xRepostLink) {
-        xRepostBtn.addEventListener('click', () => {
-            const link = xRepostLink.value.trim();
-            if (!link) {
-                showMissionStatus('❌ Inserisci il link al repost', 'error');
-                return;
-            }
-            performSocialAction('x_repost', link);
-        });
-    }
-
-    if (redditJoinBtn) {
-        redditJoinBtn.addEventListener('click', () => performSocialAction('reddit_join', null));
-    }
-
-    if (redditUpvoteBtn && redditUpvoteLink) {
-        redditUpvoteBtn.addEventListener('click', () => {
-            const link = redditUpvoteLink.value.trim();
-            if (!link) {
-                showMissionStatus('❌ Inserisci il link all\'upvote', 'error');
-                return;
-            }
-            performSocialAction('reddit_upvote', link);
-        });
-    }
+    // Add history section
+    tasksContainer.innerHTML += `
+        <div class="task-history">
+            <h4>📜 Le Tue Azioni Recenti</h4>
+            <div id="socialActionsHistory" class="history-list">
+                <div class="loading">Caricamento...</div>
+            </div>
+        </div>
+    `;
 }
+
+window.handleMissionVerify = function(missionId) {
+    const input = document.getElementById(`${missionId}_input`);
+    const link = input ? input.value.trim() : null;
+
+    // Validate link if required
+    const reward = socialRewards[missionId];
+    if (!reward) {
+        showToast('❌ Azione non valida', 'error');
+        return;
+    }
+
+    // If requires link, validate it
+    if (input && !link) {
+        showToast('❌ Inserisci il link richiesto', 'error');
+        return;
+    }
+
+    performSocialAction(missionId, link);
+};
 
 async function performSocialAction(actionType, link) {
     if (!window.app.currentUser) {
-        showMissionStatus('❌ Utente non autenticato', 'error');
+        showToast('❌ Utente non autenticato', 'error');
         return;
     }
 
     const reward = socialRewards[actionType];
     if (!reward) {
-        showMissionStatus('❌ Azione non valida', 'error');
+        showToast('❌ Azione non valida', 'error');
+        return;
+    }
+
+    // Check if user has enough credits
+    if (reward.credits > 0 && window.app.currentUser.crediti < reward.credits) {
+        showToast(`❌ Crediti insufficienti! Necessari: ${reward.credits} ⚡`, 'error');
         return;
     }
 
@@ -179,7 +261,7 @@ async function performSocialAction(actionType, link) {
         const result = await response.json();
 
         if (!response.ok) {
-            showMissionStatus(`❌ ${result.error}`, 'error');
+            showToast(`❌ ${result.error}`, 'error');
             return;
         }
 
@@ -194,7 +276,8 @@ async function performSocialAction(actionType, link) {
         if (creditsDisplay) creditsDisplay.textContent = result.newCredits;
         if (puntiDisplay) puntiDisplay.textContent = result.newPoints;
 
-        showMissionStatus(`✅ ${result.message}! Nuovi Punti: ${result.newPoints}`, 'success');
+        // Show success toast with points awarded
+        showToast(`✅ Azione registrata! +${reward.points} Punti assegnati alla Classifica.`, 'success');
 
         // Reload user actions and leaderboard
         await loadUserSocialActions();
@@ -202,14 +285,13 @@ async function performSocialAction(actionType, link) {
 
         // Clear input field
         if (link) {
-            const inputId = `${actionType}Link`.replace(/_/g, '');
-            const input = document.getElementById(inputId);
+            const input = document.getElementById(`${actionType}_input`);
             if (input) input.value = '';
         }
 
     } catch (error) {
         console.error('Social action error:', error);
-        showMissionStatus('❌ Errore durante l\'azione', 'error');
+        showToast('❌ Errore durante l\'azione', 'error');
     }
 }
 
@@ -317,19 +399,43 @@ async function loadMonthlyLeaderboard() {
 // UTILITIES
 // ================================
 
-function showMissionStatus(message, type = 'info') {
-    const statusDiv = document.getElementById('missionStatus');
-    if (!statusDiv) {
-        alert(message);
-        return;
+function showToast(message, type = 'info') {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) {
+        existingToast.remove();
     }
 
-    statusDiv.textContent = message;
-    statusDiv.className = `status-message show ${type}`;
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
 
+    // Add icon based on type
+    let icon = '💬';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+
+    toast.innerHTML = `<span class="toast-icon">${icon}</span>${message}`;
+
+    document.body.appendChild(toast);
+
+    // Trigger animation
     setTimeout(() => {
-        statusDiv.classList.remove('show');
+        toast.classList.add('show');
+    }, 100);
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.remove();
+        }, 400);
     }, 5000);
+}
+
+// Legacy function for compatibility
+function showMissionStatus(message, type = 'info') {
+    showToast(message, type);
 }
 
 // ================================
