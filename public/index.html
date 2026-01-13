@@ -48,16 +48,16 @@
             <div class="header-center">
                 <div class="user-stats">
                     <div class="stat-item">
-                        <span class="stat-label">ID UNIVOCO:</span>
-                        <span class="stat-value" id="userIdDisplay">---</span>
-                    </div>
-                    <div class="stat-item">
                         <span class="stat-label">USERNAME:</span>
                         <span class="stat-value" id="usernameDisplay">---</span>
                     </div>
                     <div class="stat-item credits-display">
-                        <span class="stat-label">CREDITI:</span>
+                        <span class="stat-label">CREDITI RESIDUI:</span>
                         <span class="stat-value" id="creditsDisplay">0</span>
+                    </div>
+                    <div class="stat-item capital-display">
+                        <span class="stat-label">🔒 LUNC IN STAKING:</span>
+                        <span class="stat-value" id="capitalDisplay">0</span>
                     </div>
                 </div>
             </div>
@@ -71,7 +71,11 @@
             <!-- Sidebar Navigation -->
             <aside class="sidebar">
                 <nav class="nav-menu">
-                    <button class="nav-item active" data-module="lunopoly">
+                    <button class="nav-item active" data-module="dashboard">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-label">DASHBOARD</span>
+                    </button>
+                    <button class="nav-item" data-module="lunopoly">
                         <span class="nav-icon">🎲</span>
                         <span class="nav-label">LUNOPOLY</span>
                     </button>
@@ -98,8 +102,145 @@
 
             <!-- Content Modules -->
             <main class="content-area">
+                <!-- DASHBOARD Module -->
+                <section id="dashboardModule" class="module active">
+                    <div class="module-header">
+                        <h2>📊 DASHBOARD - Panoramica Economica</h2>
+                        <p class="module-description">Gestisci il tuo capitale e monitora le statistiche globali</p>
+                    </div>
+
+                    <!-- Capital Protection Notice -->
+                    <div class="capital-notice">
+                        <div class="notice-icon">🔒</div>
+                        <div class="notice-content">
+                            <h3>Protezione del Capitale al 100%</h3>
+                            <p>Il tuo capitale è <strong>garantito al 100%</strong> e protetto in staking. Il principale non viene mai speso.</p>
+                        </div>
+                    </div>
+
+                    <!-- User Capital Stats -->
+                    <div class="dashboard-grid">
+                        <div class="dashboard-card">
+                            <h3>💰 Il Tuo Capitale</h3>
+                            <div class="big-stat">
+                                <span class="stat-value" id="userCapitalDisplay">0</span>
+                                <span class="stat-unit">LUNC</span>
+                            </div>
+                            <p class="stat-description">Capitale totale depositato e protetto in staking</p>
+                        </div>
+
+                        <div class="dashboard-card">
+                            <h3>⚡ Crediti Residui</h3>
+                            <div class="big-stat">
+                                <span class="stat-value" id="userCreditsDisplay">0</span>
+                                <span class="stat-unit">Crediti</span>
+                            </div>
+                            <p class="stat-description">Crediti disponibili per giochi e chat</p>
+                        </div>
+
+                        <div class="dashboard-card">
+                            <h3>📈 Ratio Minting</h3>
+                            <div class="big-stat">
+                                <span class="stat-value">1,500</span>
+                                <span class="stat-unit">Crediti</span>
+                            </div>
+                            <p class="stat-description">Per ogni 100,000 LUNC depositati</p>
+                        </div>
+                    </div>
+
+                    <!-- Deposit Section -->
+                    <div class="deposit-section">
+                        <h3>💎 Deposita LUNC</h3>
+                        <p class="section-description">Deposita LUNC per mintare Crediti. Deposito minimo: 100,000 LUNC (multipli di 100,000)</p>
+                        <div class="deposit-form">
+                            <input type="number" id="depositAmountInput" placeholder="Inserisci importo (es: 100000)" step="100000" min="100000">
+                            <button id="depositBtn" class="cyber-button">
+                                <span>DEPOSITA LUNC</span>
+                            </button>
+                        </div>
+                        <div id="depositStatus" class="status-message"></div>
+                        <div class="deposit-info">
+                            <p><strong>Nota:</strong> In ambiente di test, il deposito viene simulato. In produzione, sarà richiesta una transazione blockchain reale.</p>
+                        </div>
+                    </div>
+
+                    <!-- Global Stats -->
+                    <div class="global-stats-section">
+                        <h3>🌐 Statistiche Globali</h3>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">💼</div>
+                                <div class="stat-content">
+                                    <div class="stat-label">Pool di Staking Totale</div>
+                                    <div class="stat-number" id="globalStakingPool">0</div>
+                                    <div class="stat-suffix">LUNC</div>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">🏆</div>
+                                <div class="stat-content">
+                                    <div class="stat-label">Fondo Premi (50% APR)</div>
+                                    <div class="stat-number" id="fondoPremi">0</div>
+                                    <div class="stat-suffix">LUNC</div>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">🔥</div>
+                                <div class="stat-content">
+                                    <div class="stat-label">LUNC Bruciati da Yield</div>
+                                    <div class="stat-number" id="totalBurned">0</div>
+                                    <div class="stat-suffix">LUNC</div>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">📊</div>
+                                <div class="stat-content">
+                                    <div class="stat-label">APR Corrente</div>
+                                    <div class="stat-number" id="currentAPR">5.0</div>
+                                    <div class="stat-suffix">%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- APR Distribution Breakdown -->
+                    <div class="apr-breakdown">
+                        <h3>📊 Distribuzione APR</h3>
+                        <p class="section-description">100% dell'APR generato dal pool di staking viene distribuito come segue:</p>
+                        <div class="breakdown-grid">
+                            <div class="breakdown-item">
+                                <div class="breakdown-bar" style="width: 50%; background: linear-gradient(135deg, #ffd700, #ffaa00);">
+                                    <span>50%</span>
+                                </div>
+                                <div class="breakdown-label">🏆 Fondo Premi (Top 10)</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-bar" style="width: 20%; background: linear-gradient(135deg, #ff4500, #ff6347);">
+                                    <span>20%</span>
+                                </div>
+                                <div class="breakdown-label">🔥 Burn Strategico</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-bar" style="width: 15%; background: linear-gradient(135deg, #00ffff, #00ced1);">
+                                    <span>15%</span>
+                                </div>
+                                <div class="breakdown-label">⚙️ Sviluppo & Server</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-bar" style="width: 15%; background: linear-gradient(135deg, #00ff00, #32cd32);">
+                                    <span>15%</span>
+                                </div>
+                                <div class="breakdown-label">👤 Creator Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- LUNOPOLY Module -->
-                <section id="lunopolyModule" class="module active">
+                <section id="lunopolyModule" class="module">
                     <div class="module-header">
                         <h2>🎲 LUNOPOLY - Monopoli Blockchain</h2>
                         <p class="module-description">Tabellone a 24 caselle con 4 Bot Conservatori</p>
@@ -195,6 +336,7 @@
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
+    <script src="modules/dashboard.js"></script>
     <script src="modules/lunopoly.js"></script>
     <script src="modules/social.js"></script>
     <script src="modules/blog.js"></script>

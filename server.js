@@ -158,6 +158,130 @@ app.get('/api/properties', async (req, res) => {
   }
 });
 
+// ================================
+// ECONOMIC ENDPOINTS
+// ================================
+
+// Deposit LUNC and mint Crediti
+app.post('/api/deposit', async (req, res) => {
+  try {
+    const { userId, amountLUNC, txHash } = req.body;
+
+    if (!userId || !amountLUNC) {
+      return res.status(400).json({ error: 'userId e amountLUNC richiesti' });
+    }
+
+    if (amountLUNC < 100000) {
+      return res.status(400).json({ error: 'Deposito minimo: 100,000 LUNC' });
+    }
+
+    // Check if amount is multiple of 100,000
+    if (amountLUNC % 100000 !== 0) {
+      return res.status(400).json({ error: 'Il deposito deve essere in multipli di 100,000 LUNC' });
+    }
+
+    const result = await db.depositLUNC(userId, amountLUNC, txHash);
+
+    // Broadcast to all clients
+    io.emit('deposit:completed', {
+      userId,
+      amountLUNC,
+      creditiMinted: result.creditiMinted
+    });
+
+    res.json({
+      success: true,
+      message: `Deposito completato! ${result.creditiMinted} Crediti mintati`,
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Deposit error:', error);
+    res.status(500).json({ error: error.message || 'Errore durante il deposito' });
+  }
+});
+
+// Get global statistics
+app.get('/api/stats/global', async (req, res) => {
+  try {
+    const stats = await db.getGlobalStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Global stats error:', error);
+    res.status(500).json({ error: 'Errore recupero statistiche globali' });
+  }
+});
+
+// Get user deposits
+app.get('/api/deposits/:userId', async (req, res) => {
+  try {
+    const deposits = await db.getUserDeposits(req.params.userId);
+    res.json(deposits);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore recupero depositi' });
+  }
+});
+
+// Distribute APR (Admin endpoint - should be protected in production)
+app.post('/api/apr/distribute', async (req, res) => {
+  try {
+    const { totalAPR, notes } = req.body;
+
+    if (!totalAPR || totalAPR <= 0) {
+      return res.status(400).json({ error: 'totalAPR deve essere maggiore di 0' });
+    }
+
+    const result = await db.distributeAPR(totalAPR, notes);
+
+    // Broadcast APR distribution to all clients
+    io.emit('apr:distributed', result);
+
+    res.json({
+      success: true,
+      message: 'Distribuzione APR completata',
+      ...result
+    });
+
+  } catch (error) {
+    console.error('APR distribution error:', error);
+    res.status(500).json({ error: 'Errore distribuzione APR' });
+  }
+});
+
+// Update APR fund (Simulated staking rewards)
+app.post('/api/apr/update', async (req, res) => {
+  try {
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'amount deve essere maggiore di 0' });
+    }
+
+    await db.updateAPRFund(amount);
+
+    res.json({
+      success: true,
+      message: 'APR fund aggiornato',
+      amountAdded: amount
+    });
+
+  } catch (error) {
+    console.error('APR update error:', error);
+    res.status(500).json({ error: 'Errore aggiornamento APR' });
+  }
+});
+
+// Get recent APR distributions
+app.get('/api/apr/distributions', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const distributions = await db.getRecentDistributions(limit);
+    res.json(distributions);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore recupero distribuzioni' });
+  }
+});
+
 // Get blog feed (proxy to avoid CORS)
 app.get('/api/blog/feed', async (req, res) => {
   try {

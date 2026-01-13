@@ -8,12 +8,13 @@ const db = new sqlite3.Database(dbPath);
 const initializeDatabase = () => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      // Users table
+      // Users table with capital tracking
       db.run(`
         CREATE TABLE IF NOT EXISTS users (
           id_univoco TEXT PRIMARY KEY,
           username TEXT UNIQUE NOT NULL,
-          crediti INTEGER DEFAULT 100,
+          crediti INTEGER DEFAULT 1500,
+          total_deposited_lunc REAL DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           last_login DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -64,11 +65,68 @@ const initializeDatabase = () => {
           FOREIGN KEY (user_id) REFERENCES users(id_univoco)
         )
       `, (err) => {
+        if (err) console.error('Error creating messages table:', err);
+      });
+
+      // Global stats table for economic tracking
+      db.run(`
+        CREATE TABLE IF NOT EXISTS global_stats (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          total_staking_pool REAL DEFAULT 0,
+          total_burned_from_yield REAL DEFAULT 0,
+          current_apr_fund REAL DEFAULT 0,
+          fondo_premi REAL DEFAULT 0,
+          sviluppo_fund REAL DEFAULT 0,
+          creator_fund REAL DEFAULT 0,
+          current_apr_rate REAL DEFAULT 5.0,
+          last_apr_distribution DATETIME,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `, (err) => {
+        if (err) console.error('Error creating global_stats table:', err);
+      });
+
+      // Initialize global stats if not exists
+      db.run(`
+        INSERT OR IGNORE INTO global_stats (id) VALUES (1)
+      `, (err) => {
+        if (err) console.error('Error initializing global_stats:', err);
+      });
+
+      // Deposits table to track LUNC deposits
+      db.run(`
+        CREATE TABLE IF NOT EXISTS deposits (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL,
+          amount_lunc REAL NOT NULL,
+          crediti_minted INTEGER NOT NULL,
+          transaction_hash TEXT,
+          status TEXT DEFAULT 'confirmed',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id_univoco)
+        )
+      `, (err) => {
+        if (err) console.error('Error creating deposits table:', err);
+      });
+
+      // APR distributions table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS apr_distributions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          distribution_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+          total_apr_collected REAL NOT NULL,
+          fondo_premi_amount REAL NOT NULL,
+          burn_amount REAL NOT NULL,
+          sviluppo_amount REAL NOT NULL,
+          creator_amount REAL NOT NULL,
+          notes TEXT
+        )
+      `, (err) => {
         if (err) {
-          console.error('Error creating messages table:', err);
+          console.error('Error creating apr_distributions table:', err);
           reject(err);
         } else {
-          console.log('Database initialized successfully');
+          console.log('Database initialized successfully with economic schema');
           resolve();
         }
       });
@@ -84,7 +142,7 @@ const createUser = (idUnivoco, username) => {
       [idUnivoco, username],
       function(err) {
         if (err) reject(err);
-        else resolve({ id_univoco: idUnivoco, username, crediti: 100 });
+        else resolve({ id_univoco: idUnivoco, username, crediti: 1500, total_deposited_lunc: 0 });
       }
     );
   });
@@ -258,6 +316,172 @@ const getRecentMessages = (limit = 50) => {
   });
 };
 
+// Economic operations
+
+// Deposit LUNC and mint Crediti (100,000 LUNC = 1,500 Crediti)
+const depositLUNC = (userId, amountLUNC, txHash = null) => {
+  return new Promise((resolve, reject) => {
+    // Calculate crediti to mint: 1,500 per 100,000 LUNC
+    const creditiPerUnit = 1500;
+    const luncPerUnit = 100000;
+    const creditiMinted = Math.floor((amountLUNC / luncPerUnit) * creditiPerUnit);
+
+    if (creditiMinted === 0) {
+      return reject(new Error('Deposito minimo: 100,000 LUNC'));
+    }
+
+    db.serialize(() => {
+      // Update user credits and total deposited
+      db.run(
+        'UPDATE users SET crediti = crediti + ?, total_deposited_lunc = total_deposited_lunc + ? WHERE id_univoco = ?',
+        [creditiMinted, amountLUNC, userId],
+        (err) => {
+          if (err) return reject(err);
+        }
+      );
+
+      // Update global staking pool
+      db.run(
+        'UPDATE global_stats SET total_staking_pool = total_staking_pool + ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1',
+        [amountLUNC],
+        (err) => {
+          if (err) return reject(err);
+        }
+      );
+
+      // Record deposit
+      db.run(
+        'INSERT INTO deposits (user_id, amount_lunc, crediti_minted, transaction_hash) VALUES (?, ?, ?, ?)',
+        [userId, amountLUNC, creditiMinted, txHash],
+        function(err) {
+          if (err) reject(err);
+          else resolve({
+            depositId: this.lastID,
+            amountLUNC,
+            creditiMinted,
+            totalStaked: amountLUNC
+          });
+        }
+      );
+    });
+  });
+};
+
+// Get global statistics
+const getGlobalStats = () => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM global_stats WHERE id = 1', (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+// Update APR fund from staking rewards
+const updateAPRFund = (aprAmount) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE global_stats SET current_apr_fund = current_apr_fund + ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1',
+      [aprAmount],
+      function(err) {
+        if (err) reject(err);
+        else resolve(this.changes);
+      }
+    );
+  });
+};
+
+// Distribute APR according to the economic model
+const distributeAPR = (totalAPR, notes = '') => {
+  return new Promise((resolve, reject) => {
+    // Distribution percentages
+    const fondoPremi = totalAPR * 0.50;  // 50% to Prize Fund
+    const burnAmount = totalAPR * 0.20;  // 20% to Strategic Burn
+    const sviluppo = totalAPR * 0.15;    // 15% to Development
+    const creator = totalAPR * 0.15;     // 15% to Creator
+
+    db.serialize(() => {
+      // Update global stats with distribution
+      db.run(
+        `UPDATE global_stats SET
+          fondo_premi = fondo_premi + ?,
+          total_burned_from_yield = total_burned_from_yield + ?,
+          sviluppo_fund = sviluppo_fund + ?,
+          creator_fund = creator_fund + ?,
+          current_apr_fund = current_apr_fund - ?,
+          last_apr_distribution = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = 1`,
+        [fondoPremi, burnAmount, sviluppo, creator, totalAPR],
+        (err) => {
+          if (err) return reject(err);
+        }
+      );
+
+      // Record distribution
+      db.run(
+        `INSERT INTO apr_distributions
+          (total_apr_collected, fondo_premi_amount, burn_amount, sviluppo_amount, creator_amount, notes)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+        [totalAPR, fondoPremi, burnAmount, sviluppo, creator, notes],
+        function(err) {
+          if (err) reject(err);
+          else resolve({
+            distributionId: this.lastID,
+            totalAPR,
+            fondoPremi,
+            burnAmount,
+            sviluppo,
+            creator
+          });
+        }
+      );
+    });
+  });
+};
+
+// Get user deposit history
+const getUserDeposits = (userId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT * FROM deposits WHERE user_id = ? ORDER BY created_at DESC',
+      [userId],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      }
+    );
+  });
+};
+
+// Get recent APR distributions
+const getRecentDistributions = (limit = 10) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT * FROM apr_distributions ORDER BY distribution_date DESC LIMIT ?',
+      [limit],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      }
+    );
+  });
+};
+
+// Update total deposited for migration (if needed)
+const updateTotalDeposited = (userId, amount) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE users SET total_deposited_lunc = total_deposited_lunc + ? WHERE id_univoco = ?',
+      [amount, userId],
+      function(err) {
+        if (err) reject(err);
+        else resolve(this.changes);
+      }
+    );
+  });
+};
+
 module.exports = {
   db,
   initializeDatabase,
@@ -274,5 +498,13 @@ module.exports = {
   updatePlayerPosition,
   createPlayerState,
   saveMessage,
-  getRecentMessages
+  getRecentMessages,
+  // Economic functions
+  depositLUNC,
+  getGlobalStats,
+  updateAPRFund,
+  distributeAPR,
+  getUserDeposits,
+  getRecentDistributions,
+  updateTotalDeposited
 };

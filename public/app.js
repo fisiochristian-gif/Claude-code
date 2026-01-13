@@ -140,18 +140,33 @@ function showMainApp() {
     updateUserDisplay();
     loadLeaderboard();
 
-    // Initialize first module (LUNOPOLY)
-    if (typeof initializeLunopoly === 'function') {
-        initializeLunopoly();
+    // Initialize first module (DASHBOARD)
+    if (typeof initializeDashboard === 'function') {
+        initializeDashboard();
     }
 }
 
 function updateUserDisplay() {
     if (currentUser) {
-        userIdDisplay.textContent = currentUser.id_univoco.substring(0, 8) + '...';
         usernameDisplay.textContent = currentUser.username;
-        creditsDisplay.textContent = currentUser.crediti;
+        creditsDisplay.textContent = currentUser.crediti || 0;
+
+        // Update capital display
+        const capital = currentUser.total_deposited_lunc || 0;
+        const capitalDisplayElement = document.getElementById('capitalDisplay');
+        if (capitalDisplayElement) {
+            capitalDisplayElement.textContent = formatNumberDisplay(capital);
+        }
     }
+}
+
+function formatNumberDisplay(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(2) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(2) + 'K';
+    }
+    return num.toLocaleString('it-IT');
 }
 
 // ================================
@@ -246,7 +261,9 @@ function switchModule(moduleName) {
         targetModule.classList.add('active');
 
         // Initialize module-specific functionality
-        if (moduleName === 'lunopoly' && typeof initializeLunopoly === 'function') {
+        if (moduleName === 'dashboard' && typeof initializeDashboard === 'function') {
+            initializeDashboard();
+        } else if (moduleName === 'lunopoly' && typeof initializeLunopoly === 'function') {
             initializeLunopoly();
         } else if (moduleName === 'social' && typeof initializeSocial === 'function') {
             initializeSocial();
