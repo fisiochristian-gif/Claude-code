@@ -1,10 +1,12 @@
 // ================================
 // LUNC HORIZON - Main Application
+// Hub-Based Navigation System
 // ================================
 
 const API_BASE = window.location.origin;
 let socket = null;
 let currentUser = null;
+let currentPage = 'hub';
 
 // DOM Elements
 const loginScreen = document.getElementById('loginScreen');
@@ -13,16 +15,27 @@ const usernameInput = document.getElementById('usernameInput');
 const loginBtn = document.getElementById('loginBtn');
 const loginError = document.getElementById('loginError');
 const logoutBtn = document.getElementById('logoutBtn');
+const homeBtn = document.getElementById('homeBtn');
 
 // User Display Elements
-const userIdDisplay = document.getElementById('userIdDisplay');
-const usernameDisplay = document.getElementById('usernameDisplay');
+const idDisplay = document.getElementById('idDisplay');
 const creditsDisplay = document.getElementById('creditsDisplay');
+const puntiDisplay = document.getElementById('puntiDisplay');
+const capitalDisplay = document.getElementById('capitalDisplay');
+const hubUsername = document.getElementById('hubUsername');
 const connectionStatus = document.getElementById('connectionStatus');
 
-// Navigation
-const navItems = document.querySelectorAll('.nav-item');
-const modules = document.querySelectorAll('.module');
+// Page Containers
+const hubScreen = document.getElementById('hubScreen');
+const lunopolyPage = document.getElementById('lunopolyPage');
+const socialPage = document.getElementById('socialPage');
+const missionPage = document.getElementById('missionPage');
+
+// Hub Cards
+const hubCards = document.querySelectorAll('.hub-card');
+
+// Tabs
+const tabButtons = document.querySelectorAll('.tab-button');
 
 // ================================
 // INITIALIZATION
@@ -35,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeApp() {
-    console.log('🚀 LUNC HORIZON - Initializing...');
+    console.log('🚀 LUNC HORIZON - Hub-Based Navigation Initialized');
 }
 
 function setupEventListeners() {
@@ -48,11 +61,29 @@ function setupEventListeners() {
     // Logout
     logoutBtn.addEventListener('click', handleLogout);
 
-    // Navigation
-    navItems.forEach(item => {
-        item.addEventListener('click', () => {
-            const module = item.dataset.module;
-            switchModule(module);
+    // Home Button
+    homeBtn.addEventListener('click', () => {
+        switchPage('hub');
+    });
+
+    // Hub Cards Navigation
+    hubCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const pageName = card.dataset.page;
+            if (pageName) {
+                switchPage(pageName);
+            }
+        });
+    });
+
+    // Tab Navigation
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.dataset.tab;
+            const parentContainer = button.closest('.page-content');
+            if (parentContainer && tabName) {
+                switchTab(parentContainer, tabName);
+            }
         });
     });
 }
@@ -116,6 +147,7 @@ function handleLogout() {
     mainApp.classList.remove('active');
 
     usernameInput.value = '';
+    currentPage = 'hub';
 }
 
 function checkExistingSession() {
@@ -138,30 +170,32 @@ function showMainApp() {
     mainApp.classList.add('active');
 
     updateUserDisplay();
-    loadLeaderboard();
 
-    // Initialize first module (DASHBOARD)
-    if (typeof initializeDashboard === 'function') {
-        initializeDashboard();
-    }
+    // Show Hub by default
+    switchPage('hub');
 }
 
 function updateUserDisplay() {
     if (currentUser) {
-        usernameDisplay.textContent = currentUser.username;
-        creditsDisplay.textContent = currentUser.crediti || 0;
-
-        // Update points display
-        const puntiDisplay = document.getElementById('puntiDisplay');
+        // Header stats
+        if (idDisplay) {
+            const shortId = currentUser.id_univoco.substring(0, 8);
+            idDisplay.textContent = shortId;
+        }
+        if (creditsDisplay) {
+            creditsDisplay.textContent = currentUser.crediti || 0;
+        }
         if (puntiDisplay) {
             puntiDisplay.textContent = currentUser.punti_classifica || 0;
         }
+        if (capitalDisplay) {
+            const capital = currentUser.total_deposited_lunc || 0;
+            capitalDisplay.textContent = formatNumberDisplay(capital);
+        }
 
-        // Update capital display
-        const capital = currentUser.total_deposited_lunc || 0;
-        const capitalDisplayElement = document.getElementById('capitalDisplay');
-        if (capitalDisplayElement) {
-            capitalDisplayElement.textContent = formatNumberDisplay(capital);
+        // Hub username
+        if (hubUsername) {
+            hubUsername.textContent = currentUser.username;
         }
     }
 }
@@ -184,7 +218,9 @@ function initializeSocket() {
 
     socket.on('connect', () => {
         console.log('✅ Socket connected');
-        connectionStatus.style.background = '#00ff00';
+        if (connectionStatus) {
+            connectionStatus.style.background = '#00ff00';
+        }
 
         // Join with user data
         socket.emit('user:join', currentUser);
@@ -192,18 +228,21 @@ function initializeSocket() {
 
     socket.on('disconnect', () => {
         console.log('❌ Socket disconnected');
-        connectionStatus.style.background = '#ff0000';
+        if (connectionStatus) {
+            connectionStatus.style.background = '#ff0000';
+        }
     });
 
     socket.on('credits:updated', (data) => {
         if (currentUser) {
             currentUser.crediti = data.crediti;
-            creditsDisplay.textContent = data.crediti;
+            if (creditsDisplay) {
+                creditsDisplay.textContent = data.crediti;
+            }
 
             // Update points if provided
             if (data.punti_classifica !== undefined) {
                 currentUser.punti_classifica = data.punti_classifica;
-                const puntiDisplay = document.getElementById('puntiDisplay');
                 if (puntiDisplay) {
                     puntiDisplay.textContent = data.punti_classifica;
                 }
@@ -254,41 +293,90 @@ function initializeSocket() {
 }
 
 // ================================
-// NAVIGATION
+// HUB-BASED NAVIGATION
 // ================================
 
-function switchModule(moduleName) {
-    // Update nav items
-    navItems.forEach(item => {
-        if (item.dataset.module === moduleName) {
-            item.classList.add('active');
-        } else {
-            item.classList.remove('active');
+function switchPage(pageName) {
+    console.log(`🔄 Switching to page: ${pageName}`);
+
+    // Hide all pages
+    const pages = [hubScreen, lunopolyPage, socialPage, missionPage];
+    pages.forEach(page => {
+        if (page) {
+            page.classList.remove('active');
         }
     });
 
-    // Update modules
-    modules.forEach(module => {
-        module.classList.remove('active');
+    // Show target page
+    currentPage = pageName;
+
+    switch(pageName) {
+        case 'hub':
+            if (hubScreen) hubScreen.classList.add('active');
+            break;
+
+        case 'lunopoly':
+            if (lunopolyPage) lunopolyPage.classList.add('active');
+            // Initialize dashboard tab by default
+            const lunopolyTabs = lunopolyPage.querySelector('.page-tabs');
+            if (lunopolyTabs) {
+                switchTab(lunopolyPage, 'dashboard');
+            }
+            break;
+
+        case 'social':
+            if (socialPage) socialPage.classList.add('active');
+            // Initialize social module
+            if (typeof initializeSocial === 'function') {
+                initializeSocial();
+            }
+            break;
+
+        case 'mission':
+            if (missionPage) missionPage.classList.add('active');
+            // Initialize socialearn tab by default
+            const missionTabs = missionPage.querySelector('.page-tabs');
+            if (missionTabs) {
+                switchTab(missionPage, 'socialearn');
+            }
+            break;
+    }
+}
+
+function switchTab(container, tabName) {
+    console.log(`📑 Switching to tab: ${tabName}`);
+
+    // Update tab buttons
+    const tabs = container.querySelectorAll('.tab-button');
+    tabs.forEach(tab => {
+        if (tab.dataset.tab === tabName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
     });
 
-    const targetModule = document.getElementById(`${moduleName}Module`);
-    if (targetModule) {
-        targetModule.classList.add('active');
+    // Update tab content
+    const contents = container.querySelectorAll('.tab-content');
+    contents.forEach(content => {
+        content.classList.remove('active');
+    });
+
+    const targetContent = container.querySelector(`#${tabName}Tab`);
+    if (targetContent) {
+        targetContent.classList.add('active');
 
         // Initialize module-specific functionality
-        if (moduleName === 'dashboard' && typeof initializeDashboard === 'function') {
+        if (tabName === 'dashboard' && typeof initializeDashboard === 'function') {
             initializeDashboard();
-        } else if (moduleName === 'lunopoly' && typeof initializeLunopoly === 'function') {
+        } else if (tabName === 'game' && typeof initializeLunopoly === 'function') {
             initializeLunopoly();
-        } else if (moduleName === 'social' && typeof initializeSocial === 'function') {
-            initializeSocial();
-        } else if (moduleName === 'socialearn' && typeof initializeSocialEarn === 'function') {
-            initializeSocialEarn();
-        } else if (moduleName === 'blog' && typeof loadBlogFeed === 'function') {
-            loadBlogFeed();
-        } else if (moduleName === 'leaderboard') {
+        } else if (tabName === 'leaderboard') {
             loadLeaderboard();
+        } else if (tabName === 'socialearn' && typeof initializeSocialEarn === 'function') {
+            initializeSocialEarn();
+        } else if (tabName === 'blog' && typeof loadBlogFeed === 'function') {
+            loadBlogFeed();
         }
     }
 }
@@ -303,6 +391,8 @@ async function loadLeaderboard() {
         const leaderboard = await response.json();
 
         const tbody = document.getElementById('leaderboardBody');
+        if (!tbody) return;
+
         tbody.innerHTML = '';
 
         leaderboard.forEach((entry, index) => {
@@ -347,5 +437,7 @@ window.app = {
     socket,
     currentUser,
     API_BASE,
-    formatTimestamp
+    formatTimestamp,
+    switchPage,
+    switchTab
 };

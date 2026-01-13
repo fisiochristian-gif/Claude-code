@@ -40,78 +40,119 @@
 
     <!-- Main App -->
     <div id="mainApp" class="screen">
-        <!-- Header -->
-        <header class="main-header">
+        <!-- Global Header (Always Visible) -->
+        <header class="global-header">
             <div class="header-left">
-                <h1 class="app-title">LUNC HORIZON</h1>
+                <button id="homeBtn" class="home-button">
+                    <span class="home-icon">🏠</span>
+                    <span class="home-label">TORNA ALLA HOME</span>
+                </button>
             </div>
             <div class="header-center">
-                <div class="user-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">USERNAME:</span>
-                        <span class="stat-value" id="usernameDisplay">---</span>
+                <div class="user-stats-compact">
+                    <div class="stat-compact">
+                        <span class="stat-label-compact">ID:</span>
+                        <span class="stat-value-compact" id="idDisplay">---</span>
                     </div>
-                    <div class="stat-item credits-display">
-                        <span class="stat-label">CREDITI:</span>
-                        <span class="stat-value" id="creditsDisplay">0</span>
+                    <div class="stat-compact credits-stat">
+                        <span class="stat-label-compact">💰 CREDITI:</span>
+                        <span class="stat-value-compact" id="creditsDisplay">0</span>
                     </div>
-                    <div class="stat-item points-display">
-                        <span class="stat-label">🎯 PUNTI:</span>
-                        <span class="stat-value" id="puntiDisplay">0</span>
+                    <div class="stat-compact points-stat">
+                        <span class="stat-label-compact">🎯 PUNTI:</span>
+                        <span class="stat-value-compact" id="puntiDisplay">0</span>
                     </div>
-                    <div class="stat-item capital-display">
-                        <span class="stat-label">🔒 CAPITALE:</span>
-                        <span class="stat-value" id="capitalDisplay">0</span>
+                    <div class="stat-compact capital-stat">
+                        <span class="stat-label-compact">🔒 CAPITALE:</span>
+                        <span class="stat-value-compact" id="capitalDisplay">0</span>
+                        <span class="stat-unit-compact">LUNC</span>
                     </div>
                 </div>
             </div>
             <div class="header-right">
-                <button id="logoutBtn" class="cyber-button-small">ESCI</button>
+                <button id="logoutBtn" class="logout-button">ESCI</button>
             </div>
         </header>
 
-        <!-- Main Content Area -->
-        <div class="main-layout">
-            <!-- Sidebar Navigation -->
-            <aside class="sidebar">
-                <nav class="nav-menu">
-                    <button class="nav-item active" data-module="dashboard">
-                        <span class="nav-icon">📊</span>
-                        <span class="nav-label">DASHBOARD</span>
-                    </button>
-                    <button class="nav-item" data-module="lunopoly">
-                        <span class="nav-icon">🎲</span>
-                        <span class="nav-label">LUNOPOLY</span>
-                    </button>
-                    <button class="nav-item" data-module="social">
-                        <span class="nav-icon">💬</span>
-                        <span class="nav-label">SOCIAL WALL</span>
-                    </button>
-                    <button class="nav-item" data-module="socialearn">
-                        <span class="nav-icon">🎯</span>
-                        <span class="nav-label">SOCIAL-TO-EARN</span>
-                    </button>
-                    <button class="nav-item" data-module="blog">
-                        <span class="nav-icon">📰</span>
-                        <span class="nav-label">BLOG</span>
-                    </button>
-                    <button class="nav-item" data-module="leaderboard">
-                        <span class="nav-icon">🏆</span>
-                        <span class="nav-label">CLASSIFICA</span>
-                    </button>
-                </nav>
-                <div class="sidebar-footer">
-                    <div class="connection-status">
+        <!-- HUB Screen (Home) -->
+        <div id="hubScreen" class="page-container active">
+            <div class="hub-container">
+                <div class="hub-title">
+                    <h1 class="hub-neon-text">LUNC HORIZON</h1>
+                    <p class="hub-subtitle">Benvenuto, <span id="hubUsername">User</span></p>
+                </div>
+
+                <div class="hub-cards">
+                    <!-- Card 1: Area LUNOPOLY -->
+                    <div class="hub-card" data-page="lunopoly">
+                        <div class="hub-card-icon">🕹️</div>
+                        <h2 class="hub-card-title">AREA LUNOPOLY</h2>
+                        <p class="hub-card-description">Gioca a LUNOPOLY, gestisci il capitale e controlla la classifica</p>
+                        <div class="hub-card-features">
+                            <span class="feature-tag">🎲 Gioco Monopoly</span>
+                            <span class="feature-tag">📊 Dashboard Economica</span>
+                            <span class="feature-tag">🏆 Classifica</span>
+                        </div>
+                        <button class="hub-card-button">
+                            <span>ENTRA</span>
+                            <span class="arrow">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Card 2: Social Wall -->
+                    <div class="hub-card" data-page="social">
+                        <div class="hub-card-icon">💬</div>
+                        <h2 class="hub-card-title">SOCIAL WALL</h2>
+                        <p class="hub-card-description">Chat in tempo reale con la community LUNC HORIZON</p>
+                        <div class="hub-card-features">
+                            <span class="feature-tag">💬 Chat Real-Time</span>
+                            <span class="feature-tag">🎯 +10 Punti per messaggio</span>
+                            <span class="feature-tag">⚡ 1 Credito/msg</span>
+                        </div>
+                        <button class="hub-card-button">
+                            <span>ENTRA</span>
+                            <span class="arrow">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Card 3: Mission Control -->
+                    <div class="hub-card" data-page="mission">
+                        <div class="hub-card-icon">📈</div>
+                        <h2 class="hub-card-title">MISSION CONTROL</h2>
+                        <p class="hub-card-description">Completa missioni social e leggi il blog per guadagnare punti</p>
+                        <div class="hub-card-features">
+                            <span class="feature-tag">🎯 Social-to-Earn</span>
+                            <span class="feature-tag">📰 Blog Feed</span>
+                            <span class="feature-tag">🎁 Premi e Bonus</span>
+                        </div>
+                        <button class="hub-card-button">
+                            <span>ENTRA</span>
+                            <span class="arrow">→</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Connection Status -->
+                <div class="hub-footer">
+                    <div class="connection-indicator">
                         <span class="status-dot" id="connectionStatus"></span>
                         <span class="status-text">CONNESSO</span>
                     </div>
                 </div>
-            </aside>
+            </div>
+        </div>
 
-            <!-- Content Modules -->
-            <main class="content-area">
-                <!-- DASHBOARD Module -->
-                <section id="dashboardModule" class="module active">
+        <!-- AREA LUNOPOLY Page -->
+        <div id="lunopolyPage" class="page-container">
+            <div class="page-content">
+                <div class="page-tabs">
+                    <button class="tab-button active" data-tab="dashboard">📊 DASHBOARD</button>
+                    <button class="tab-button" data-tab="game">🎲 LUNOPOLY</button>
+                    <button class="tab-button" data-tab="leaderboard">🏆 CLASSIFICA</button>
+                </div>
+
+                <!-- Dashboard Tab -->
+                <div id="dashboardTab" class="tab-content active">
                     <div class="module-header">
                         <h2>📊 DASHBOARD - Panoramica Economica</h2>
                         <p class="module-description">Gestisci il tuo capitale e monitora le statistiche globali</p>
@@ -245,10 +286,10 @@
                             </div>
                         </div>
                     </div>
-                </section>
+                </div>
 
-                <!-- LUNOPOLY Module -->
-                <section id="lunopolyModule" class="module">
+                <!-- LUNOPOLY Game Tab -->
+                <div id="gameTab" class="tab-content">
                     <div class="module-header">
                         <h2>🎲 LUNOPOLY - Monopoli Blockchain</h2>
                         <p class="module-description">Tabellone a 24 caselle con 4 Bot Conservatori</p>
@@ -283,30 +324,68 @@
                         <h3>Log Eventi</h3>
                         <div id="gameLogContent"></div>
                     </div>
-                </section>
+                </div>
 
-                <!-- SOCIAL WALL Module -->
-                <section id="socialModule" class="module">
+                <!-- Leaderboard Tab -->
+                <div id="leaderboardTab" class="tab-content">
                     <div class="module-header">
-                        <h2>💬 SOCIAL WALL - Chat in Tempo Reale</h2>
-                        <p class="module-description">Ogni messaggio costa 1 Credito LUNC</p>
+                        <h2>🏆 CLASSIFICA - Top Players</h2>
+                        <p class="module-description">I migliori giocatori per Punti Social-to-Earn (Reset mensile)</p>
                     </div>
-                    <div class="social-container">
-                        <div class="messages-area" id="messagesArea">
-                            <!-- Messaggi verranno aggiunti qui -->
-                        </div>
-                        <div class="message-input-area">
-                            <input type="text" id="messageInput" placeholder="Scrivi un messaggio (costo: 1 Credito)..." maxlength="500">
-                            <button id="sendMessageBtn" class="cyber-button">
-                                <span>INVIA</span>
-                            </button>
-                        </div>
-                        <div id="chatError" class="error-message"></div>
+                    <div class="leaderboard-notice">
+                        <p>⚠️ La classifica si basa sui <strong>Punti</strong> guadagnati con Social-to-Earn</p>
+                        <p>🔄 Reset automatico ogni 30 giorni</p>
                     </div>
-                </section>
+                    <div class="leaderboard-container">
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>POSIZIONE</th>
+                                    <th>USERNAME</th>
+                                    <th>PUNTI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboardBody">
+                                <!-- Leaderboard data -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <!-- SOCIAL-TO-EARN Module -->
-                <section id="socialearnModule" class="module">
+        <!-- SOCIAL WALL Page -->
+        <div id="socialPage" class="page-container">
+            <div class="page-content">
+                <div class="module-header">
+                    <h2>💬 SOCIAL WALL - Chat in Tempo Reale</h2>
+                    <p class="module-description">Ogni messaggio costa 1 Credito e ti dà +10 Punti</p>
+                </div>
+                <div class="social-container">
+                    <div class="messages-area" id="messagesArea">
+                        <!-- Messaggi verranno aggiunti qui -->
+                    </div>
+                    <div class="message-input-area">
+                        <input type="text" id="messageInput" placeholder="Scrivi un messaggio (costo: 1 Credito, premio: +10 Punti)..." maxlength="500">
+                        <button id="sendMessageBtn" class="cyber-button">
+                            <span>INVIA</span>
+                        </button>
+                    </div>
+                    <div id="chatError" class="error-message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MISSION CONTROL Page -->
+        <div id="missionPage" class="page-container">
+            <div class="page-content">
+                <div class="page-tabs">
+                    <button class="tab-button active" data-tab="socialearn">🎯 SOCIAL-TO-EARN</button>
+                    <button class="tab-button" data-tab="blog">📰 BLOG</button>
+                </div>
+
+                <!-- Social-to-Earn Tab -->
+                <div id="socialearnTab" class="tab-content active">
                     <div class="module-header">
                         <h2>🎯 SOCIAL-TO-EARN - Guadagna Punti</h2>
                         <p class="module-description">Completa azioni social per guadagnare punti e scalare la classifica</p>
@@ -326,13 +405,13 @@
                                 <span class="reward-icon">💬</span>
                                 <span class="reward-name">Comment Blog</span>
                                 <span class="reward-points">+50 Punti</span>
-                                <span class="reward-cost">Costo: 5 Crediti</span>
+                                <span class="reward-cost paid">Costo: 5 Crediti</span>
                             </div>
                             <div class="reward-item">
                                 <span class="reward-icon">💬</span>
                                 <span class="reward-name">Social Wall Message</span>
                                 <span class="reward-points">+10 Punti</span>
-                                <span class="reward-cost">Costo: 1 Credito</span>
+                                <span class="reward-cost paid">Costo: 1 Credito</span>
                             </div>
                             <div class="reward-item">
                                 <span class="reward-icon">🐦</span>
@@ -344,13 +423,13 @@
                                 <span class="reward-icon">❤️</span>
                                 <span class="reward-name">X Like</span>
                                 <span class="reward-points">+30 Punti</span>
-                                <span class="reward-cost">Costo: 2 Crediti</span>
+                                <span class="reward-cost paid">Costo: 2 Crediti</span>
                             </div>
                             <div class="reward-item">
                                 <span class="reward-icon">🔄</span>
                                 <span class="reward-name">X Repost</span>
                                 <span class="reward-points">+200 Punti</span>
-                                <span class="reward-cost">Costo: 10 Crediti</span>
+                                <span class="reward-cost paid">Costo: 10 Crediti</span>
                             </div>
                             <div class="reward-item">
                                 <span class="reward-icon">🤖</span>
@@ -362,7 +441,7 @@
                                 <span class="reward-icon">⬆️</span>
                                 <span class="reward-name">Reddit Upvote</span>
                                 <span class="reward-points">+40 Punti</span>
-                                <span class="reward-cost">Costo: 2 Crediti</span>
+                                <span class="reward-cost paid">Costo: 2 Crediti</span>
                             </div>
                             <div class="reward-item">
                                 <span class="reward-icon">🎁</span>
@@ -441,10 +520,10 @@
                             <div class="loading">Caricamento...</div>
                         </div>
                     </div>
-                </section>
+                </div>
 
-                <!-- BLOG Module -->
-                <section id="blogModule" class="module">
+                <!-- Blog Tab -->
+                <div id="blogTab" class="tab-content">
                     <div class="module-header">
                         <h2>📰 BLOG - Rendite Digitali</h2>
                         <p class="module-description">Feed da renditedigitali.blogspot.com</p>
@@ -452,35 +531,8 @@
                     <div class="blog-container" id="blogContainer">
                         <div class="loading">Caricamento feed...</div>
                     </div>
-                </section>
-
-                <!-- LEADERBOARD Module -->
-                <section id="leaderboardModule" class="module">
-                    <div class="module-header">
-                        <h2>🏆 CLASSIFICA - Top Players</h2>
-                        <p class="module-description">I migliori giocatori per Punti Social-to-Earn (Reset mensile)</p>
-                    </div>
-                    <div class="leaderboard-notice">
-                        <p>⚠️ La classifica si basa sui <strong>Punti</strong> guadagnati con Social-to-Earn</p>
-                        <p>🔄 Reset automatico ogni 30 giorni</p>
-                    </div>
-                    <div class="leaderboard-container">
-                        <table class="leaderboard-table">
-                            <thead>
-                                <tr>
-                                    <th>POSIZIONE</th>
-                                    <th>USERNAME</th>
-                                    <th>PUNTI</th>
-                                    <th>CREDITI</th>
-                                </tr>
-                            </thead>
-                            <tbody id="leaderboardBody">
-                                <!-- Leaderboard data -->
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            </main>
+                </div>
+            </div>
         </div>
     </div>
 
