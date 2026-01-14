@@ -17,7 +17,24 @@ function initializeHub() {
     renderHubHome();
     setupHubNavigation();
     updateUserProfile();
+    updateUserSummaryHUD();
     checkSystemMessages();
+
+    // Start real-time ticker
+    startDataTicker();
+
+    // Load dynamic widgets
+    updateYieldWidget();
+    updatePrizePoolWidget();
+
+    // Load RD Insights feed
+    loadRDInsightsFeed();
+
+    // Refresh widgets every 30 seconds
+    setInterval(() => {
+        updatePrizePoolWidget();
+        updateUserSummaryHUD();
+    }, 30000);
 
     hubInitialized = true;
 }
@@ -35,11 +52,137 @@ function renderHubHome() {
 
     hubContainer.innerHTML = `
         <div class="rd-station-hub">
-            <!-- Hero Header -->
-            <div class="hub-hero">
-                <div class="hub-hero-content">
-                    <h1 class="hub-title">Welcome to The RD Station</h1>
-                    <p class="hub-subtitle">Your Gateway to Blockchain Gaming, Staking & Social Rewards</p>
+            <!-- Real-Time Data Ticker -->
+            <div class="data-ticker">
+                <div class="ticker-track" id="tickerTrack">
+                    <div class="ticker-item">
+                        <span class="ticker-icon">🌕</span>
+                        <span class="ticker-label">LUNC/USD:</span>
+                        <span class="ticker-value" id="luncPrice">$0.000XXX</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-icon">💎</span>
+                        <span class="ticker-label">USTC/USD:</span>
+                        <span class="ticker-value" id="ustcPrice">$0.0XXX</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-icon">🔥</span>
+                        <span class="ticker-label">BURN TRACKER (24h):</span>
+                        <span class="ticker-value burn" id="burnTracker">0 Credits</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-icon">👥</span>
+                        <span class="ticker-label">STATION USERS:</span>
+                        <span class="ticker-value online" id="onlineUsers">0 Online</span>
+                    </div>
+                    <div class="ticker-item">
+                        <span class="ticker-icon">🏆</span>
+                        <span class="ticker-label">GLOBAL POOL:</span>
+                        <span class="ticker-value" id="globalPoolTicker">0 LUNC</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Summary HUD -->
+            <div class="user-summary-hud">
+                <div class="hud-section hud-balance">
+                    <div class="hud-icon">💰</div>
+                    <div class="hud-content">
+                        <span class="hud-label">Current Balance</span>
+                        <span class="hud-value" id="hudCredits">0</span>
+                        <span class="hud-unit">Credits</span>
+                    </div>
+                </div>
+                <div class="hud-section hud-rank">
+                    <div class="hud-icon">🏆</div>
+                    <div class="hud-content">
+                        <span class="hud-label">Global Rank</span>
+                        <span class="hud-value" id="hudRank">#--</span>
+                        <span class="hud-unit" id="hudPoints">0 pts</span>
+                    </div>
+                </div>
+                <div class="hud-section hud-notifications">
+                    <div class="hud-icon">🔔</div>
+                    <div class="hud-content">
+                        <span class="hud-label">Active Notifications</span>
+                        <span class="hud-value" id="hudNotifications">0</span>
+                        <span class="hud-unit">pending</span>
+                    </div>
+                </div>
+                <div class="hud-section hud-streak">
+                    <div class="hud-icon">⚡</div>
+                    <div class="hud-content">
+                        <span class="hud-label">Login Streak</span>
+                        <span class="hud-value" id="hudStreak">0</span>
+                        <span class="hud-unit">days</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Widgets Row -->
+            <div class="dynamic-widgets">
+                <!-- Yield Widget -->
+                <div class="widget yield-widget">
+                    <div class="widget-header">
+                        <span class="widget-icon">📈</span>
+                        <h3 class="widget-title">Your Minting Rate</h3>
+                    </div>
+                    <div class="widget-content">
+                        <div class="yield-stats">
+                            <div class="yield-item">
+                                <span class="yield-label">Daily Yield:</span>
+                                <span class="yield-value" id="widgetDailyYield">0</span>
+                                <span class="yield-unit">Credits/day</span>
+                            </div>
+                            <div class="yield-item">
+                                <span class="yield-label">Monthly Yield:</span>
+                                <span class="yield-value" id="widgetMonthlyYield">0</span>
+                                <span class="yield-unit">Credits/month</span>
+                            </div>
+                            <div class="yield-progress">
+                                <div class="yield-progress-bar" id="yieldProgressBar" style="width: 0%"></div>
+                            </div>
+                            <p class="yield-note">Based on 80% APR minting rule</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prize Pool Alert Widget -->
+                <div class="widget prize-pool-widget glow-pulse">
+                    <div class="widget-header">
+                        <span class="widget-icon">🎮</span>
+                        <h3 class="widget-title">Luncopoly Live</h3>
+                    </div>
+                    <div class="widget-content">
+                        <div class="prize-pool-alert">
+                            <div class="prize-pool-main">
+                                <span class="prize-label">Active Tables:</span>
+                                <span class="prize-value" id="widgetActiveTables">0/2</span>
+                            </div>
+                            <div class="prize-pool-amount">
+                                <span class="prize-label">Win up to:</span>
+                                <span class="prize-value-large">250</span>
+                                <span class="prize-unit">Credits</span>
+                            </div>
+                            <button class="widget-cta-button" onclick="navigateToGameCenter()">
+                                <span>🎲 PLAY NOW (50 Credits)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RD Insights Feed -->
+            <div class="rd-insights-feed">
+                <div class="feed-header">
+                    <h2 class="feed-title">
+                        <span class="feed-icon">📰</span>
+                        Latest from RD Insights
+                    </h2>
+                    <button class="feed-view-all" onclick="navigateToRDInsights()">View All →</button>
+                </div>
+                <div class="feed-grid" id="rdInsightsFeed">
+                    <div class="feed-loading">Loading latest articles...</div>
                 </div>
             </div>
 
@@ -245,6 +388,392 @@ async function loadRDInsightsCount() {
 }
 
 // ================================
+// REAL-TIME TICKER FUNCTIONS
+// ================================
+
+let tickerInterval = null;
+
+function startDataTicker() {
+    // Initial update
+    updateTickerData();
+
+    // Update every 5 seconds
+    tickerInterval = setInterval(updateTickerData, 5000);
+
+    // Animate ticker track (continuous scroll)
+    const tickerTrack = document.getElementById('tickerTrack');
+    if (tickerTrack) {
+        // Clone ticker items for seamless loop
+        const tickerItems = tickerTrack.innerHTML;
+        tickerTrack.innerHTML = tickerItems + tickerItems;
+    }
+}
+
+async function updateTickerData() {
+    try {
+        // Update LUNC/USTC prices (simulated for now, can be replaced with real API)
+        updateCryptoPrices();
+
+        // Update burn tracker
+        const burnResponse = await fetch(`${window.app.API_BASE}/api/stats/burn-tracker`);
+        if (burnResponse.ok) {
+            const burnData = await burnResponse.json();
+            const burnEl = document.getElementById('burnTracker');
+            if (burnEl) {
+                burnEl.textContent = `${burnData.credits_burned_24h || 0} Credits`;
+            }
+        }
+
+        // Update online users count
+        const usersResponse = await fetch(`${window.app.API_BASE}/api/stats/online-users`);
+        if (usersResponse.ok) {
+            const usersData = await usersResponse.json();
+            const usersEl = document.getElementById('onlineUsers');
+            if (usersEl) {
+                usersEl.textContent = `${usersData.count || 0} Online`;
+            }
+        }
+
+        // Update global pool
+        const poolResponse = await fetch(`${window.app.API_BASE}/api/staking/global-stats`);
+        if (poolResponse.ok) {
+            const poolData = await poolResponse.json();
+            const poolEl = document.getElementById('globalPoolTicker');
+            if (poolEl && poolData.total_staked) {
+                poolEl.textContent = `${formatLargeNumber(poolData.total_staked)} LUNC`;
+            }
+        }
+
+    } catch (error) {
+        console.error('Error updating ticker data:', error);
+    }
+}
+
+function updateCryptoPrices() {
+    // Simulated prices with realistic fluctuation
+    // In production, replace with real API calls to CoinGecko, Binance, etc.
+    const luncBase = 0.00009876;
+    const ustcBase = 0.0234;
+
+    const luncFluctuation = (Math.random() - 0.5) * 0.000001;
+    const ustcFluctuation = (Math.random() - 0.5) * 0.0005;
+
+    const luncPrice = luncBase + luncFluctuation;
+    const ustcPrice = ustcBase + ustcFluctuation;
+
+    const luncEl = document.getElementById('luncPrice');
+    const ustcEl = document.getElementById('ustcPrice');
+
+    if (luncEl) {
+        luncEl.textContent = `$${luncPrice.toFixed(8)}`;
+        luncEl.className = 'ticker-value ' + (luncFluctuation > 0 ? 'price-up' : 'price-down');
+    }
+
+    if (ustcEl) {
+        ustcEl.textContent = `$${ustcPrice.toFixed(4)}`;
+        ustcEl.className = 'ticker-value ' + (ustcFluctuation > 0 ? 'price-up' : 'price-down');
+    }
+}
+
+function formatLargeNumber(num) {
+    if (num >= 1000000000) return `${(num / 1000000000).toFixed(2)}B`;
+    if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(2)}K`;
+    return num.toFixed(2);
+}
+
+// ================================
+// USER SUMMARY HUD FUNCTIONS
+// ================================
+
+function updateUserSummaryHUD() {
+    if (!window.app || !window.app.currentUser) return;
+
+    const user = window.app.currentUser;
+
+    // Update balance
+    const hudCredits = document.getElementById('hudCredits');
+    if (hudCredits) {
+        hudCredits.textContent = user.crediti || 0;
+    }
+
+    // Update rank and points
+    const hudPoints = document.getElementById('hudPoints');
+    if (hudPoints) {
+        hudPoints.textContent = `${user.punti_classifica || 0} pts`;
+    }
+
+    // Calculate and display rank (fetch from leaderboard)
+    fetchUserRank();
+
+    // Update notifications count
+    fetchNotificationsCount();
+
+    // Update streak (placeholder for now)
+    const hudStreak = document.getElementById('hudStreak');
+    if (hudStreak) {
+        hudStreak.textContent = user.login_streak || 0;
+    }
+}
+
+async function fetchUserRank() {
+    try {
+        const userId = window.app.currentUser?.id_univoco;
+        if (!userId) return;
+
+        const response = await fetch(`${window.app.API_BASE}/api/leaderboard/rank/${userId}`);
+        if (response.ok) {
+            const rankData = await response.json();
+            const hudRank = document.getElementById('hudRank');
+            if (hudRank) {
+                hudRank.textContent = `#${rankData.rank || '--'}`;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching user rank:', error);
+    }
+}
+
+async function fetchNotificationsCount() {
+    try {
+        const userId = window.app.currentUser?.id_univoco;
+        if (!userId) return;
+
+        const response = await fetch(`${window.app.API_BASE}/api/notifications/${userId}/count`);
+        if (response.ok) {
+            const notifData = await response.json();
+            const hudNotifications = document.getElementById('hudNotifications');
+            if (hudNotifications) {
+                hudNotifications.textContent = notifData.count || 0;
+
+                // Add pulsing effect if there are notifications
+                const hudSection = hudNotifications.closest('.hud-notifications');
+                if (notifData.count > 0 && hudSection) {
+                    hudSection.classList.add('has-notifications');
+                } else if (hudSection) {
+                    hudSection.classList.remove('has-notifications');
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+    }
+}
+
+// ================================
+// DYNAMIC WIDGETS FUNCTIONS
+// ================================
+
+function updateYieldWidget() {
+    if (!window.app || !window.app.currentUser) return;
+
+    const capital = window.app.currentUser.capitale_lunc || 0;
+
+    // 80% APR minting calculation
+    const apr = 0.80; // 80% APR
+    const dailyRate = apr / 365;
+    const monthlyRate = apr / 12;
+
+    // Credits minted per 100,000 LUNC = 1,500 credits
+    const creditsPerUnit = 1500 / 100000;
+
+    const dailyYield = capital * dailyRate * creditsPerUnit;
+    const monthlyYield = capital * monthlyRate * creditsPerUnit;
+
+    const widgetDailyYield = document.getElementById('widgetDailyYield');
+    const widgetMonthlyYield = document.getElementById('widgetMonthlyYield');
+
+    if (widgetDailyYield) {
+        widgetDailyYield.textContent = dailyYield.toFixed(2);
+    }
+
+    if (widgetMonthlyYield) {
+        widgetMonthlyYield.textContent = monthlyYield.toFixed(2);
+    }
+
+    // Update progress bar (percentage of daily target reached)
+    const yieldProgressBar = document.getElementById('yieldProgressBar');
+    if (yieldProgressBar) {
+        const targetDaily = 10; // Example target
+        const progress = Math.min((dailyYield / targetDaily) * 100, 100);
+        yieldProgressBar.style.width = `${progress}%`;
+    }
+}
+
+async function updatePrizePoolWidget() {
+    try {
+        const response = await fetch(`${window.app.API_BASE}/api/game/active-tables`);
+        if (response.ok) {
+            const tablesData = await response.json();
+            const widgetActiveTables = document.getElementById('widgetActiveTables');
+            if (widgetActiveTables) {
+                const activeCount = tablesData.active_tables || 0;
+                widgetActiveTables.textContent = `${activeCount}/2`;
+
+                // Add urgency effect if tables are filling up
+                const widget = document.querySelector('.prize-pool-widget');
+                if (activeCount > 0 && widget) {
+                    widget.classList.add('tables-active');
+                } else if (widget) {
+                    widget.classList.remove('tables-active');
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error updating prize pool widget:', error);
+    }
+}
+
+// ================================
+// RD INSIGHTS FEED FUNCTIONS
+// ================================
+
+async function loadRDInsightsFeed() {
+    const feedContainer = document.getElementById('rdInsightsFeed');
+    if (!feedContainer) return;
+
+    try {
+        // Simulated blog feed (in production, use real RSS parser or API)
+        const feedData = await fetchBlogFeed();
+
+        if (!feedData || feedData.length === 0) {
+            feedContainer.innerHTML = '<div class="feed-empty">No articles available</div>';
+            return;
+        }
+
+        // Display last 3 articles
+        const articles = feedData.slice(0, 3);
+
+        feedContainer.innerHTML = articles.map((article, index) => `
+            <div class="feed-card" data-article-id="${article.id}">
+                <div class="feed-card-thumbnail">
+                    <img src="${article.thumbnail || '/images/default-blog.png'}"
+                         alt="${article.title}"
+                         onerror="this.src='/images/default-blog.png'">
+                    ${article.isNew ? '<span class="feed-badge-new">NEW</span>' : ''}
+                </div>
+                <div class="feed-card-content">
+                    <h3 class="feed-card-title">${article.title}</h3>
+                    <p class="feed-card-excerpt">${article.excerpt}</p>
+                    <div class="feed-card-meta">
+                        <span class="feed-date">${formatDate(article.publishDate)}</span>
+                        ${renderVoteEarnButton(article)}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        // Setup vote & earn listeners
+        setupVoteEarnListeners();
+
+    } catch (error) {
+        console.error('Error loading RD Insights feed:', error);
+        feedContainer.innerHTML = '<div class="feed-error">Failed to load articles</div>';
+    }
+}
+
+async function fetchBlogFeed() {
+    // Simulated blog feed data
+    // In production, replace with actual RSS parser or Blogger API call
+    return [
+        {
+            id: 'article-1',
+            title: 'LUNC 2.0: The Future of Terra Classic',
+            excerpt: 'Exploring the upcoming upgrades and what they mean for the ecosystem...',
+            thumbnail: 'https://via.placeholder.com/400x250/1a1a2e/ffd700?text=LUNC+2.0',
+            publishDate: new Date(Date.now() - 86400000 * 1), // 1 day ago
+            isNew: true,
+            hasVoted: false
+        },
+        {
+            id: 'article-2',
+            title: 'Staking Strategies for Maximum Yield',
+            excerpt: 'Learn how to optimize your staking returns with proven strategies...',
+            thumbnail: 'https://via.placeholder.com/400x250/1a1a2e/00ffff?text=Staking+Guide',
+            publishDate: new Date(Date.now() - 86400000 * 3), // 3 days ago
+            isNew: false,
+            hasVoted: true
+        },
+        {
+            id: 'article-3',
+            title: 'Blockchain Gaming: The Next Revolution',
+            excerpt: 'Why blockchain gaming is poised to transform the entertainment industry...',
+            thumbnail: 'https://via.placeholder.com/400x250/1a1a2e/ff00ff?text=Gaming',
+            publishDate: new Date(Date.now() - 86400000 * 7), // 7 days ago
+            isNew: false,
+            hasVoted: false
+        }
+    ];
+}
+
+function renderVoteEarnButton(article) {
+    if (article.hasVoted) {
+        return '<span class="feed-voted">✓ Voted</span>';
+    }
+    return `<button class="feed-vote-button" data-article-id="${article.id}">
+                <span>👍 Vote & Earn 30 pts</span>
+            </button>`;
+}
+
+function setupVoteEarnListeners() {
+    const voteButtons = document.querySelectorAll('.feed-vote-button');
+    voteButtons.forEach(btn => {
+        btn.addEventListener('click', handleVoteEarn);
+    });
+}
+
+async function handleVoteEarn(event) {
+    const button = event.currentTarget;
+    const articleId = button.getAttribute('data-article-id');
+
+    button.disabled = true;
+    button.innerHTML = '<span>Processing...</span>';
+
+    try {
+        const userId = window.app.currentUser?.id_univoco;
+        const response = await fetch(`${window.app.API_BASE}/api/social/vote-article`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, articleId })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            button.innerHTML = '<span>✓ Voted (+30 pts)</span>';
+            button.classList.add('voted');
+
+            // Update user points
+            if (window.app.currentUser) {
+                window.app.currentUser.punti_classifica += 30;
+                updateUserSummaryHUD();
+                updateUserProfile();
+            }
+
+            showNotification('🎉 +30 points earned for voting!', 'success');
+        } else {
+            throw new Error('Vote failed');
+        }
+    } catch (error) {
+        console.error('Error voting on article:', error);
+        button.disabled = false;
+        button.innerHTML = '<span>👍 Vote & Earn 30 pts</span>';
+        showNotification('Failed to register vote. Please try again.', 'error');
+    }
+}
+
+function formatDate(date) {
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ================================
 // NAVIGATION FUNCTIONS
 // ================================
 
@@ -415,12 +944,28 @@ if (window.app && window.app.socket) {
 }
 
 // ================================
+// CLEANUP FUNCTION
+// ================================
+
+function cleanupHub() {
+    // Stop ticker interval
+    if (tickerInterval) {
+        clearInterval(tickerInterval);
+        tickerInterval = null;
+    }
+
+    // Reset initialization flag
+    hubInitialized = false;
+}
+
+// ================================
 // EXPORTS
 // ================================
 
 // Global function aliases for easy access
 window.initializeRDStationHub = initializeHub;
 window.refreshRDStationHub = loadHubData;
+window.cleanupRDStationHub = cleanupHub;
 window.navigateToStakingHub = navigateToStakingHub;
 window.navigateToSocialRewards = navigateToSocialRewards;
 window.navigateToGameCenter = navigateToGameCenter;
@@ -428,13 +973,17 @@ window.navigateToRDInsights = navigateToRDInsights;
 
 window.rdStationHub = {
     initialize: initializeHub,
+    cleanup: cleanupHub,
     refresh: loadHubData,
     navigateToStakingHub,
     navigateToSocialRewards,
     navigateToGameCenter,
     navigateToRDInsights,
     updateUserProfile,
-    loadHubData
+    loadHubData,
+    updateUserSummaryHUD,
+    updateYieldWidget,
+    updatePrizePoolWidget
 };
 
 // Auto-initialize when navigating to hub
