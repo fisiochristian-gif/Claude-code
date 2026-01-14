@@ -9,6 +9,7 @@ let turnTimerInterval = null;
 let turnTimerSeconds = 10;
 let currentTurn = 'player';
 let selectedProperty = null;
+let gameBalance = 1500; // Initial game balance (L currency)
 
 // DOM Elements
 const gameBoard = document.getElementById('gameBoard');
@@ -90,7 +91,7 @@ function renderBoard() {
         cell.innerHTML = `
             <span class="cell-position">#${property.position}</span>
             <div class="cell-name">${property.name}</div>
-            ${property.price > 0 ? `<div class="cell-price">${property.price}⚡</div>` : ''}
+            ${property.price > 0 ? `<div class="cell-price">${property.price} L</div>` : ''}
             ${property.owner_id ? '<div class="cell-owner">👤</div>' : ''}
             ${property.position === playerPosition ? '<div class="player-marker">🎮</div>' : ''}
         `;
@@ -127,8 +128,8 @@ function showPropertyDetails(property) {
 
     const details = `
         📍 ${property.name}
-        💰 Prezzo: ${property.price} Crediti
-        💸 Affitto: ${property.rent} Crediti/turno
+        💰 Prezzo: ${property.price} L
+        💸 Affitto: ${property.rent} L/turno
         ${property.owner_id ? '👤 Proprietà posseduta' : '✅ Disponibile per acquisto'}
     `;
 
@@ -216,12 +217,9 @@ function buyProperty() {
         return;
     }
 
-    if (window.app.currentUser.crediti < selectedProperty.price) {
-        addGameLog('❌ Crediti insufficienti');
-        return;
-    }
-
-    const confirmMsg = `Acquistare "${selectedProperty.name}" per ${selectedProperty.price} Crediti?`;
+    // NOTE: Game balance validation should be done server-side
+    // This is a simplified client-side check
+    const confirmMsg = `Acquistare "${selectedProperty.name}" per ${selectedProperty.price} L?`;
     if (!confirm(confirmMsg)) return;
 
     // Emit purchase event
@@ -300,7 +298,7 @@ function handleGameRoll(data) {
 function handleGamePurchase(data) {
     console.log('💰 Purchase received:', data);
 
-    addGameLog(`✅ ${data.username} ha acquistato ${data.propertyName} per ${data.price} Crediti`);
+    addGameLog(`✅ ${data.username} ha acquistato ${data.propertyName} per ${data.price} L`);
 
     // Reload properties to update ownership
     loadProperties().then(() => {

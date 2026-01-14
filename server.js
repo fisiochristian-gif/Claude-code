@@ -388,6 +388,291 @@ app.get('/api/blog/feed', async (req, res) => {
   }
 });
 
+// ================================
+// LOBBY & MATCHMAKING ENDPOINTS
+// ================================
+
+// Matchmaking state
+const lobbyState = {
+  countdownTimers: new Map(), // tableId -> timer
+  botFillTimers: new Map()     // tableId -> timer
+};
+
+// Get all game tables status
+app.get('/api/lobby/tables', async (req, res) => {
+  try {
+    const tables = await db.getAllGameTables();
+    const tablesWithPlayers = await Promise.all(
+      tables.map(async (table) => {
+        const players = await db.getTablePlayers(table.table_id);
+        return {
+          ...table,
+          players: players.map(p => ({
+            id: p.player_id,
+            username: p.username,
+            isBot: p.is_bot === 1,
+            buyInPaid: p.buy_in_paid === 1
+          }))
+        };
+      })
+    );
+    res.json(tablesWithPlayers);
+  } catch (error) {
+    console.error('Get tables error:', error);
+    res.status(500).json({ error: 'Errore recupero tavoli' });
+  }
+});
+
+// Join game lobby
+app.post('/api/lobby/join', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId richiesto' });
+    }
+
+    // Find available table
+    const tables = await db.getAllGameTables();
+    let targetTable = null;
+
+    for (const table of tables) {
+      if (table.status === 'waiting') {
+        const players = await db.getTablePlayers(table.table_id);
+        if (players.length < table.max_players) {
+          targetTable = table;
+          break;
+        }
+      }
+    }
+
+    if (!targetTable) {
+      return res.status(400).json({ error: 'Nessun tavolo disponibile' });
+    }
+
+    // Check if user has enough credits
+    const user = await db.getUser(userId);
+    if (!user || user.crediti < 50) {
+      return res.status(400).json({ error: 'Crediti insufficienti (richiesti: 50)' });
+    }
+
+    // Join table
+    await db.joinGameTable(userId, targetTable.table_id, false);
+
+    // Process buy-in
+    await db.processBuyIn(userId, targetTable.table_id);
+
+    // Get updated player count
+    const players = await db.getTablePlayers(targetTable.table_id);
+    const playerCount = players.length;
+
+    // Update table player count
+    await db.updateGameTableStatus(targetTable.table_id, 'waiting', {
+      playerCount
+    });
+
+    // Start countdown if this is the first player
+    if (playerCount === 1) {
+      startTableCountdown(targetTable.table_id);
+    }
+
+    // If 5 human players, start game immediately
+    if (playerCount === 5) {
+      clearTableCountdown(targetTable.table_id);
+      await startGame(targetTable.table_id);
+    }
+
+    // Broadcast lobby update
+    io.emit('lobby:update', {
+      tableId: targetTable.table_id,
+      playerCount,
+      status: playerCount === 5 ? 'starting' : 'waiting'
+    });
+
+    res.json({
+      success: true,
+      tableId: targetTable.table_id,
+      playerCount,
+      message: 'Join effettuato! 50 Crediti dedotti.'
+    });
+
+  } catch (error) {
+    console.error('Join lobby error:', error);
+    res.status(500).json({ error: error.message || 'Errore durante il join' });
+  }
+});
+
+// Leave lobby (only works if game hasn't started)
+app.post('/api/lobby/leave', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId richiesto' });
+    }
+
+    // Get user's current table
+    const playerState = await db.getPlayerState(userId);
+    if (!playerState) {
+      return res.status(400).json({ error: 'Non sei in un tavolo' });
+    }
+
+    const table = await db.getGameTable(playerState.table_id);
+    if (table.status !== 'waiting') {
+      return res.status(400).json({ error: 'Il gioco è già iniziato, non puoi uscire' });
+    }
+
+    // Refund credits
+    await db.updateCredits(userId, 50);
+    await db.recordTransaction(userId, 'refund', 50, playerState.table_id, 'LUNOPOLY Buy-in refund');
+
+    // Remove from table
+    await db.leaveGameTable(userId);
+
+    // Update table
+    const players = await db.getTablePlayers(playerState.table_id);
+    const playerCount = players.length;
+
+    await db.updateGameTableStatus(playerState.table_id, 'waiting', {
+      playerCount,
+      prizePool: table.prize_pool - 50
+    });
+
+    // If no players left, clear countdown
+    if (playerCount === 0) {
+      clearTableCountdown(playerState.table_id);
+    }
+
+    // Broadcast lobby update
+    io.emit('lobby:update', {
+      tableId: playerState.table_id,
+      playerCount,
+      status: 'waiting'
+    });
+
+    res.json({
+      success: true,
+      message: 'Sei uscito dal tavolo. 50 Crediti rimborsati.'
+    });
+
+  } catch (error) {
+    console.error('Leave lobby error:', error);
+    res.status(500).json({ error: error.message || 'Errore durante l\'uscita' });
+  }
+});
+
+// Countdown management
+function startTableCountdown(tableId) {
+  const COUNTDOWN_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  // Clear existing timer if any
+  clearTableCountdown(tableId);
+
+  const countdownStartedAt = new Date().toISOString();
+
+  // Update table
+  db.updateGameTableStatus(tableId, 'waiting', {
+    countdownStartedAt
+  });
+
+  // Set countdown timer
+  const timer = setTimeout(async () => {
+    await fillRemainingSlots(tableId);
+  }, COUNTDOWN_DURATION);
+
+  lobbyState.countdownTimers.set(tableId, timer);
+
+  console.log(`⏱️ Countdown started for table ${tableId} - 5 minutes`);
+
+  // Broadcast countdown start
+  io.emit('lobby:countdown-started', {
+    tableId,
+    duration: COUNTDOWN_DURATION,
+    startedAt: countdownStartedAt
+  });
+}
+
+function clearTableCountdown(tableId) {
+  const timer = lobbyState.countdownTimers.get(tableId);
+  if (timer) {
+    clearTimeout(timer);
+    lobbyState.countdownTimers.delete(tableId);
+    console.log(`⏱️ Countdown cleared for table ${tableId}`);
+  }
+}
+
+async function fillRemainingSlots(tableId) {
+  try {
+    const players = await db.getTablePlayers(tableId);
+    const humanPlayers = players.filter(p => !p.is_bot);
+    const availableSlots = 5 - humanPlayers.length;
+
+    console.log(`🤖 Filling ${availableSlots} slots with bots for table ${tableId}`);
+
+    // Add bots to fill remaining slots
+    const botNames = ['Bot Alpha', 'Bot Beta', 'Bot Gamma', 'Bot Delta'];
+    let botsAdded = 0;
+
+    for (let i = 0; i < availableSlots && i < gameState.bots.length; i++) {
+      const bot = gameState.bots[i];
+      try {
+        await db.joinGameTable(bot.id, tableId, true);
+        botsAdded++;
+        console.log(`✅ Bot ${bot.name} joined table ${tableId}`);
+      } catch (error) {
+        console.error(`Failed to add bot ${bot.name}:`, error);
+      }
+    }
+
+    // Update table player count
+    const updatedPlayers = await db.getTablePlayers(tableId);
+    await db.updateGameTableStatus(tableId, 'waiting', {
+      playerCount: updatedPlayers.length
+    });
+
+    // Broadcast lobby update
+    io.emit('lobby:bots-added', {
+      tableId,
+      botsAdded,
+      totalPlayers: updatedPlayers.length
+    });
+
+    // Start the game
+    await startGame(tableId);
+
+  } catch (error) {
+    console.error('Fill remaining slots error:', error);
+  }
+}
+
+async function startGame(tableId) {
+  try {
+    const gameStartedAt = new Date().toISOString();
+
+    await db.updateGameTableStatus(tableId, 'active', {
+      gameStartedAt
+    });
+
+    console.log(`🎮 Game started for table ${tableId}`);
+
+    // Broadcast game start
+    const players = await db.getTablePlayers(tableId);
+    io.emit('game:started', {
+      tableId,
+      players: players.map(p => ({
+        id: p.player_id,
+        username: p.username,
+        isBot: p.is_bot === 1,
+        gameBalance: p.game_balance
+      })),
+      startedAt: gameStartedAt
+    });
+
+  } catch (error) {
+    console.error('Start game error:', error);
+  }
+}
+
 // Socket.IO events
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);

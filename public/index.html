@@ -292,8 +292,23 @@
                 <div id="gameTab" class="tab-content">
                     <div class="module-header">
                         <h2>🎲 LUNOPOLY - Monopoli Blockchain</h2>
-                        <p class="module-description">Tabellone a 24 caselle con 4 Bot Conservatori</p>
+                        <p class="module-description">Tabellone a 24 caselle | Buy-in: 50 Crediti | Capitale iniziale: 1,500 L</p>
                     </div>
+
+                    <!-- Lobby Join Section -->
+                    <div class="lobby-join-section">
+                        <div class="lobby-info-card">
+                            <h3>🎮 PARTECIPA A LUNOPOLY</h3>
+                            <p>Buy-in: <strong>50 Crediti</strong> (dedotti dal tuo Staking Balance)</p>
+                            <p>Prize Pool totale: <strong>250 Crediti</strong> (distribuiti ai vincitori)</p>
+                            <p>Capitale di gioco iniziale: <strong>1,500 L</strong></p>
+                            <p>Tavoli attivi: <span id="activeTablesCount">0/2</span></p>
+                            <button id="joinLobbyBtn" class="cyber-button">
+                                <span>💰 ENTRA IN LOBBY (50 Crediti)</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="game-container">
                         <div class="game-board" id="gameBoard">
                             <!-- Il tabellone verrà generato dinamicamente -->
@@ -440,6 +455,75 @@
         </div>
     </div>
 
+    <!-- Lobby Overlay (Waiting Room) -->
+    <div id="lobbyOverlay" class="lobby-overlay">
+        <div class="lobby-container">
+            <div class="lobby-header">
+                <h2>🎮 LUNOPOLY - WAITING ROOM</h2>
+                <p class="lobby-subtitle">Attendi altri giocatori o l'avvio della partita...</p>
+            </div>
+
+            <div class="lobby-stats">
+                <div class="lobby-stat-card">
+                    <div class="stat-icon">🎲</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Tavoli Attivi</div>
+                        <div class="stat-value" id="activeTablesCount">0/2</div>
+                    </div>
+                </div>
+
+                <div class="lobby-stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Giocatori nel tuo tavolo</div>
+                        <div class="stat-value" id="lobbyPlayerCount">0/5</div>
+                    </div>
+                </div>
+
+                <div class="lobby-stat-card countdown-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Inizio tra</div>
+                        <div class="stat-value countdown" id="lobbyCountdown">05:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lobby-players-section">
+                <h3>👥 GIOCATORI NEL TAVOLO</h3>
+                <div id="lobbyPlayerList" class="lobby-player-list">
+                    <div class="loading">Caricamento...</div>
+                </div>
+            </div>
+
+            <div class="lobby-rules">
+                <h4>📋 REGOLE</h4>
+                <ul>
+                    <li>Massimo 5 giocatori per tavolo</li>
+                    <li>Se 5 umani si uniscono, la partita inizia immediatamente</li>
+                    <li>Dopo 5 minuti, i posti vuoti vengono riempiti con bot conservatori</li>
+                    <li>Capitale iniziale: 1,500 L per ogni giocatore</li>
+                    <li>Prize Pool: 250 Crediti (distribuiti ai vincitori)</li>
+                </ul>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="leaveLobbyBtn" class="cyber-button leave-btn">
+                    <span>🚪 ESCI DALLA LOBBY (Rimborso: 50 Crediti)</span>
+                </button>
+            </div>
+
+            <div class="lobby-footer">
+                <div class="powered-by">
+                    <span>Powered by</span>
+                    <a href="https://renditedigitali.blogspot.com" target="_blank" class="blog-link">
+                        <strong>Rendite Digitali</strong>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
@@ -447,5 +531,6 @@
     <script src="modules/game.js"></script>
     <script src="modules/social.js"></script>
     <script src="modules/mission.js"></script>
+    <script src="modules/lobby.js"></script>
 </body>
 </html>

@@ -368,8 +368,13 @@ function switchTab(container, tabName) {
         // Initialize module-specific functionality
         if (tabName === 'dashboard' && typeof initializeDashboard === 'function') {
             initializeDashboard();
-        } else if (tabName === 'game' && typeof initializeLunopoly === 'function') {
-            initializeLunopoly();
+        } else if (tabName === 'game') {
+            if (typeof initializeLunopoly === 'function') {
+                initializeLunopoly();
+            }
+            if (typeof initializeLobby === 'function') {
+                initializeLobby();
+            }
         } else if (tabName === 'leaderboard') {
             loadLeaderboard();
         } else if (tabName === 'socialearn' && typeof initializeSocialEarn === 'function') {

@@ -41,15 +41,19 @@ const initializeDatabase = () => {
         if (err) console.error('Error creating properties table:', err);
       });
 
-      // Game state table
+      // Game state table - Enhanced for lobby system
       db.run(`
         CREATE TABLE IF NOT EXISTS game_state (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           player_id TEXT NOT NULL,
+          table_id INTEGER DEFAULT 1,
           position INTEGER DEFAULT 0,
+          game_balance INTEGER DEFAULT 1500,
           in_jail BOOLEAN DEFAULT 0,
           jail_turns INTEGER DEFAULT 0,
           is_bot BOOLEAN DEFAULT 0,
+          buy_in_paid BOOLEAN DEFAULT 0,
+          joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (player_id) REFERENCES users(id_univoco)
         )
       `, (err) => {
@@ -140,12 +144,53 @@ const initializeDatabase = () => {
           FOREIGN KEY (user_id) REFERENCES users(id_univoco)
         )
       `, (err) => {
+        if (err) console.error('Error creating social_actions table:', err);
+      });
+
+      // Transactions table for buy-ins and prize payouts
+      db.run(`
+        CREATE TABLE IF NOT EXISTS transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL,
+          transaction_type TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          table_id INTEGER,
+          description TEXT,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id_univoco)
+        )
+      `, (err) => {
+        if (err) console.error('Error creating transactions table:', err);
+      });
+
+      // Game tables for matchmaking and lobby management
+      db.run(`
+        CREATE TABLE IF NOT EXISTS game_tables (
+          table_id INTEGER PRIMARY KEY,
+          status TEXT DEFAULT 'waiting',
+          player_count INTEGER DEFAULT 0,
+          max_players INTEGER DEFAULT 5,
+          prize_pool INTEGER DEFAULT 0,
+          countdown_started_at DATETIME,
+          game_started_at DATETIME,
+          game_ended_at DATETIME,
+          winner_id TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `, (err) => {
         if (err) {
-          console.error('Error creating social_actions table:', err);
+          console.error('Error creating game_tables table:', err);
           reject(err);
         } else {
-          console.log('Database initialized successfully with Social-to-Earn schema');
-          resolve();
+          // Initialize 2 game tables
+          db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (1, 'waiting')`, (err) => {
+            if (err) console.error('Error initializing table 1:', err);
+          });
+          db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (2, 'waiting')`, (err) => {
+            if (err) console.error('Error initializing table 2:', err);
+            console.log('Database initialized successfully with Lobby & Matchmaking schema');
+            resolve();
+          });
         }
       });
     });
@@ -687,6 +732,222 @@ const updateUserPoints = (userId, points) => {
   });
 };
 
+// ================================
+// LOBBY & MATCHMAKING FUNCTIONS
+// ================================
+
+const getGameTable = (tableId) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM game_tables WHERE table_id = ?', [tableId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+const getAllGameTables = () => {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM game_tables ORDER BY table_id', (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
+
+const updateGameTableStatus = (tableId, status, updates = {}) => {
+  return new Promise((resolve, reject) => {
+    const fields = ['status = ?'];
+    const values = [status];
+
+    if (updates.playerCount !== undefined) {
+      fields.push('player_count = ?');
+      values.push(updates.playerCount);
+    }
+    if (updates.prizePool !== undefined) {
+      fields.push('prize_pool = ?');
+      values.push(updates.prizePool);
+    }
+    if (updates.countdownStartedAt !== undefined) {
+      fields.push('countdown_started_at = ?');
+      values.push(updates.countdownStartedAt);
+    }
+    if (updates.gameStartedAt !== undefined) {
+      fields.push('game_started_at = ?');
+      values.push(updates.gameStartedAt);
+    }
+    if (updates.gameEndedAt !== undefined) {
+      fields.push('game_ended_at = ?');
+      values.push(updates.gameEndedAt);
+    }
+    if (updates.winnerId !== undefined) {
+      fields.push('winner_id = ?');
+      values.push(updates.winnerId);
+    }
+
+    values.push(tableId);
+
+    db.run(
+      `UPDATE game_tables SET ${fields.join(', ')} WHERE table_id = ?`,
+      values,
+      (err) => {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
+};
+
+const getTablePlayers = (tableId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT gs.*, u.username
+       FROM game_state gs
+       JOIN users u ON gs.player_id = u.id_univoco
+       WHERE gs.table_id = ?
+       ORDER BY gs.joined_at`,
+      [tableId],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      }
+    );
+  });
+};
+
+const joinGameTable = (userId, tableId, isBot = false) => {
+  return new Promise((resolve, reject) => {
+    // First check if user already in a game
+    db.get(
+      'SELECT * FROM game_state WHERE player_id = ? AND table_id IN (SELECT table_id FROM game_tables WHERE status IN ("waiting", "starting", "active"))',
+      [userId],
+      (err, existing) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        if (existing) {
+          reject(new Error('Already in a game'));
+          return;
+        }
+
+        // Add player to game_state
+        db.run(
+          `INSERT INTO game_state (player_id, table_id, is_bot, buy_in_paid, game_balance)
+           VALUES (?, ?, ?, ?, 1500)`,
+          [userId, tableId, isBot ? 1 : 0, isBot ? 1 : 0],
+          (err) => {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      }
+    );
+  });
+};
+
+const recordTransaction = (userId, type, amount, tableId, description) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'INSERT INTO transactions (user_id, transaction_type, amount, table_id, description) VALUES (?, ?, ?, ?, ?)',
+      [userId, type, amount, tableId, description],
+      function(err) {
+        if (err) reject(err);
+        else resolve(this.lastID);
+      }
+    );
+  });
+};
+
+const processBuyIn = (userId, tableId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Check user has enough credits
+      const user = await getUser(userId);
+      if (!user || user.crediti < 50) {
+        reject(new Error('Insufficient credits'));
+        return;
+      }
+
+      // Deduct 50 credits
+      await updateCredits(userId, -50);
+
+      // Update buy_in_paid in game_state
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE game_state SET buy_in_paid = 1 WHERE player_id = ? AND table_id = ?',
+          [userId, tableId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      // Record transaction
+      await recordTransaction(userId, 'buy_in', -50, tableId, 'LUNOPOLY Buy-in');
+
+      // Update table prize pool
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE game_tables SET prize_pool = prize_pool + 50 WHERE table_id = ?',
+          [tableId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const leaveGameTable = (userId) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'DELETE FROM game_state WHERE player_id = ? AND table_id IN (SELECT table_id FROM game_tables WHERE status = "waiting")',
+      [userId],
+      (err) => {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
+};
+
+const resetGameTable = (tableId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Remove all players from this table
+      await new Promise((res, rej) => {
+        db.run('DELETE FROM game_state WHERE table_id = ?', [tableId], (err) => {
+          if (err) rej(err);
+          else res();
+        });
+      });
+
+      // Reset properties ownership for this table
+      await new Promise((res, rej) => {
+        db.run('UPDATE properties SET owner_id = NULL, level = 0', (err) => {
+          if (err) rej(err);
+          else res();
+        });
+      });
+
+      // Reset table status
+      await updateGameTableStatus(tableId, 'waiting', {
+        playerCount: 0,
+        prizePool: 0,
+        countdownStartedAt: null,
+        gameStartedAt: null,
+        gameEndedAt: null,
+        winnerId: null
+      });
+
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 module.exports = {
   db,
   initializeDatabase,
@@ -719,5 +980,15 @@ module.exports = {
   resetAllPoints,
   checkMonthlyReset,
   updateUserPoints,
-  SOCIAL_REWARDS
+  SOCIAL_REWARDS,
+  // Lobby & Matchmaking functions
+  getGameTable,
+  getAllGameTables,
+  updateGameTableStatus,
+  getTablePlayers,
+  joinGameTable,
+  recordTransaction,
+  processBuyIn,
+  leaveGameTable,
+  resetGameTable
 };
