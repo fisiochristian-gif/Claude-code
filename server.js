@@ -1038,6 +1038,357 @@ async function finalizeAuctionAuto(auctionId) {
   }
 }
 
+// ================================
+// SILENCE-ASSET TRADE SYSTEM
+// ================================
+
+// Trade state management per table
+const tradeState = new Map(); // playerId -> { tradeAttempts, currentTrade, timer }
+
+// Track trade attempts per player per turn
+function initializeTradeTracking(playerId) {
+  if (!tradeState.has(playerId)) {
+    tradeState.set(playerId, {
+      tradeAttempts: 0,
+      currentTrade: null,
+      timer: null
+    });
+  }
+}
+
+// Increment trade attempts for a player
+function incrementTradeAttempts(playerId) {
+  const state = tradeState.get(playerId);
+  if (state) {
+    state.tradeAttempts++;
+    return state.tradeAttempts;
+  }
+  return 0;
+}
+
+// Reset trade attempts when turn ends
+function resetTradeAttempts(playerId) {
+  const state = tradeState.get(playerId);
+  if (state) {
+    state.tradeAttempts = 0;
+  }
+}
+
+// Start 60s auto-accept timer for a trade
+function startTradeTimer(tradeId, tableId) {
+  const timer = setTimeout(async () => {
+    await handleTradeTimeout(tradeId, tableId);
+  }, 60000); // 60 seconds
+
+  return timer;
+}
+
+// Handle trade timeout - AUTO-ACCEPT for original proposals only
+async function handleTradeTimeout(tradeId, tableId) {
+  try {
+    const trade = await db.getTrade(tradeId);
+
+    if (!trade || trade.status !== 'pending') {
+      return; // Trade already handled
+    }
+
+    // SILENCE-ASSET RULE: Only auto-accept original proposals, not counter-offers
+    if (trade.is_counter_offer) {
+      // Counter-offers expire without action
+      await db.updateTradeStatus(tradeId, 'expired');
+
+      io.to(`table_${tableId}`).emit('trade:expired', {
+        tradeId,
+        reason: 'Counter-offer expired (no response)'
+      });
+
+      console.log(`⏱️ Counter-offer ${tradeId} expired`);
+    } else {
+      // Original proposals auto-accept on timeout
+      console.log(`⚠️ Trade ${tradeId} timeout - AUTO-ACCEPTING`);
+
+      try {
+        const result = await db.executeTrade(tradeId);
+
+        io.to(`table_${tableId}`).emit('trade:auto-accepted', {
+          tradeId,
+          result,
+          proposerId: trade.proposer_id,
+          receiverId: trade.receiver_id
+        });
+
+        console.log(`✅ Trade ${tradeId} AUTO-ACCEPTED due to silence`);
+      } catch (error) {
+        console.error('Auto-accept failed:', error);
+        await db.updateTradeStatus(tradeId, 'failed');
+
+        io.to(`table_${tableId}`).emit('trade:failed', {
+          tradeId,
+          error: error.message
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Handle trade timeout error:', error);
+  }
+}
+
+// Clear trade timer
+function clearTradeTimer(playerId) {
+  const state = tradeState.get(playerId);
+  if (state && state.timer) {
+    clearTimeout(state.timer);
+    state.timer = null;
+  }
+}
+
+// ================================
+// TRADE API ENDPOINTS
+// ================================
+
+// Propose a trade
+app.post('/api/trade/propose', async (req, res) => {
+  try {
+    const { tableId, proposerId, receiverId, offer, request } = req.body;
+
+    // Initialize trade tracking
+    initializeTradeTracking(proposerId);
+
+    // Check trade attempts limit (max 3 per turn)
+    const attempts = tradeState.get(proposerId).tradeAttempts;
+    if (attempts >= 3) {
+      return res.status(400).json({
+        error: 'Maximum 3 trade attempts reached. You must roll the dice.',
+        forceRoll: true
+      });
+    }
+
+    // Validate offer and request
+    if (!offer || !request) {
+      return res.status(400).json({ error: 'Invalid trade proposal' });
+    }
+
+    // Create trade in database
+    const result = await db.createTrade(tableId, proposerId, receiverId, offer, request, false, null);
+
+    // Increment trade attempts
+    incrementTradeAttempts(proposerId);
+
+    // Start 60s timer for auto-accept
+    const timer = startTradeTimer(result.tradeId, tableId);
+    tradeState.get(proposerId).timer = timer;
+    tradeState.get(proposerId).currentTrade = result.tradeId;
+
+    // Broadcast to table
+    io.to(`table_${tableId}`).emit('trade:proposed', {
+      tradeId: result.tradeId,
+      proposerId,
+      receiverId,
+      offer,
+      request,
+      expiresAt: result.expiresAt,
+      attemptsUsed: tradeState.get(proposerId).tradeAttempts
+    });
+
+    // Send notification to receiver
+    io.emit('trade:notification', {
+      receiverId,
+      tradeId: result.tradeId,
+      proposerId,
+      message: 'You have a new trade proposal!'
+    });
+
+    res.json({
+      success: true,
+      tradeId: result.tradeId,
+      expiresAt: result.expiresAt,
+      attemptsRemaining: 3 - tradeState.get(proposerId).tradeAttempts
+    });
+
+  } catch (error) {
+    console.error('Propose trade error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Accept a trade
+app.post('/api/trade/accept', async (req, res) => {
+  try {
+    const { tradeId, receiverId } = req.body;
+
+    const trade = await db.getTrade(tradeId);
+    if (!trade) {
+      return res.status(404).json({ error: 'Trade not found' });
+    }
+
+    if (trade.receiver_id !== receiverId) {
+      return res.status(403).json({ error: 'Not authorized to accept this trade' });
+    }
+
+    if (trade.status !== 'pending') {
+      return res.status(400).json({ error: 'Trade is no longer pending' });
+    }
+
+    // Clear timer
+    clearTradeTimer(trade.proposer_id);
+
+    // Execute trade
+    const result = await db.executeTrade(tradeId);
+
+    io.to(`table_${trade.table_id}`).emit('trade:accepted', {
+      tradeId,
+      result,
+      proposerId: trade.proposer_id,
+      receiverId: trade.receiver_id
+    });
+
+    res.json({ success: true, result });
+
+  } catch (error) {
+    console.error('Accept trade error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Decline a trade
+app.post('/api/trade/decline', async (req, res) => {
+  try {
+    const { tradeId, receiverId } = req.body;
+
+    const trade = await db.getTrade(tradeId);
+    if (!trade) {
+      return res.status(404).json({ error: 'Trade not found' });
+    }
+
+    if (trade.receiver_id !== receiverId) {
+      return res.status(403).json({ error: 'Not authorized to decline this trade' });
+    }
+
+    if (trade.status !== 'pending') {
+      return res.status(400).json({ error: 'Trade is no longer pending' });
+    }
+
+    // Clear timer
+    clearTradeTimer(trade.proposer_id);
+
+    // Update status
+    await db.updateTradeStatus(tradeId, 'declined');
+
+    io.to(`table_${trade.table_id}`).emit('trade:declined', {
+      tradeId,
+      proposerId: trade.proposer_id,
+      receiverId: trade.receiver_id
+    });
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('Decline trade error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Counter-offer (ONE-SHOT only)
+app.post('/api/trade/counter', async (req, res) => {
+  try {
+    const { tradeId, receiverId, counterOffer, counterRequest } = req.body;
+
+    const parentTrade = await db.getTrade(tradeId);
+    if (!parentTrade) {
+      return res.status(404).json({ error: 'Original trade not found' });
+    }
+
+    if (parentTrade.receiver_id !== receiverId) {
+      return res.status(403).json({ error: 'Not authorized to counter this trade' });
+    }
+
+    if (parentTrade.status !== 'pending') {
+      return res.status(400).json({ error: 'Original trade is no longer pending' });
+    }
+
+    // Check if counter-offer already exists for this trade
+    const existingCounter = await new Promise((resolve, reject) => {
+      db.db.get(
+        'SELECT * FROM trades WHERE parent_trade_id = ? AND is_counter_offer = 1',
+        [tradeId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (existingCounter) {
+      return res.status(400).json({
+        error: 'Only ONE counter-offer allowed per trade sequence'
+      });
+    }
+
+    // Clear original timer
+    clearTradeTimer(parentTrade.proposer_id);
+
+    // Update original trade status
+    await db.updateTradeStatus(tradeId, 'countered');
+
+    // Create counter-offer (roles reversed)
+    const result = await db.createTrade(
+      parentTrade.table_id,
+      receiverId, // Receiver becomes proposer
+      parentTrade.proposer_id, // Original proposer becomes receiver
+      counterOffer,
+      counterRequest,
+      true, // is_counter_offer = true
+      tradeId // parent_trade_id
+    );
+
+    // Start 60s timer (but it will expire, not auto-accept)
+    const timer = startTradeTimer(result.tradeId, parentTrade.table_id);
+
+    initializeTradeTracking(receiverId);
+    tradeState.get(receiverId).timer = timer;
+    tradeState.get(receiverId).currentTrade = result.tradeId;
+
+    io.to(`table_${parentTrade.table_id}`).emit('trade:counter-offered', {
+      originalTradeId: tradeId,
+      counterTradeId: result.tradeId,
+      proposerId: receiverId,
+      receiverId: parentTrade.proposer_id,
+      counterOffer,
+      counterRequest,
+      expiresAt: result.expiresAt
+    });
+
+    res.json({
+      success: true,
+      counterTradeId: result.tradeId,
+      expiresAt: result.expiresAt
+    });
+
+  } catch (error) {
+    console.error('Counter-offer error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get active trade for a player
+app.get('/api/trade/active/:playerId', async (req, res) => {
+  try {
+    const { playerId } = req.params;
+
+    const trade = await db.getActiveTrade(playerId);
+
+    if (!trade) {
+      return res.json({ trade: null });
+    }
+
+    res.json({ trade });
+
+  } catch (error) {
+    console.error('Get active trade error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Socket.IO events
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);

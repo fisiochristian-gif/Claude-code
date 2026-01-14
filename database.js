@@ -206,6 +206,34 @@ const initializeDatabase = () => {
         if (err) {
           console.error('Error creating auctions table:', err);
           reject(err);
+        }
+      });
+
+      // Trades table for Silence-Asset trade system
+      db.run(`
+        CREATE TABLE IF NOT EXISTS trades (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          table_id INTEGER NOT NULL,
+          proposer_id TEXT NOT NULL,
+          receiver_id TEXT NOT NULL,
+          status TEXT DEFAULT 'pending',
+          offered_properties TEXT,
+          offered_currency INTEGER DEFAULT 0,
+          requested_properties TEXT,
+          requested_currency INTEGER DEFAULT 0,
+          is_counter_offer BOOLEAN DEFAULT 0,
+          parent_trade_id INTEGER,
+          expires_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          completed_at DATETIME,
+          FOREIGN KEY (proposer_id) REFERENCES users(id_univoco),
+          FOREIGN KEY (receiver_id) REFERENCES users(id_univoco),
+          FOREIGN KEY (parent_trade_id) REFERENCES trades(id)
+        )
+      `, (err) => {
+        if (err) {
+          console.error('Error creating trades table:', err);
+          reject(err);
         } else {
           // Initialize 2 game tables
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (1, 'waiting')`, (err) => {
@@ -213,7 +241,7 @@ const initializeDatabase = () => {
           });
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (2, 'waiting')`, (err) => {
             if (err) console.error('Error initializing table 2:', err);
-            console.log('Database initialized successfully with Blitz Turn Engine schema');
+            console.log('Database initialized successfully with Silence-Asset Trade System');
             resolve();
           });
         }
@@ -1272,6 +1300,218 @@ const finalizeAuction = (auctionId) => {
   });
 };
 
+// ================================
+// SILENCE-ASSET TRADE FUNCTIONS
+// ================================
+
+const createTrade = (tableId, proposerId, receiverId, offer, request, isCounterOffer = false, parentTradeId = null) => {
+  return new Promise((resolve, reject) => {
+    // Expires in 60 seconds
+    const expiresAt = new Date(Date.now() + 60000);
+
+    const offeredProperties = offer.properties ? offer.properties.join(',') : '';
+    const requestedProperties = request.properties ? request.properties.join(',') : '';
+
+    db.run(
+      `INSERT INTO trades (
+        table_id, proposer_id, receiver_id,
+        offered_properties, offered_currency,
+        requested_properties, requested_currency,
+        is_counter_offer, parent_trade_id, expires_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        tableId, proposerId, receiverId,
+        offeredProperties, offer.currency || 0,
+        requestedProperties, request.currency || 0,
+        isCounterOffer ? 1 : 0, parentTradeId, expiresAt.toISOString()
+      ],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ tradeId: this.lastID, expiresAt });
+      }
+    );
+  });
+};
+
+const getTrade = (tradeId) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM trades WHERE id = ?', [tradeId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+const getActiveTrade = (playerId) => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM trades
+       WHERE (proposer_id = ? OR receiver_id = ?)
+       AND status = 'pending'
+       ORDER BY id DESC LIMIT 1`,
+      [playerId, playerId],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      }
+    );
+  });
+};
+
+const updateTradeStatus = (tradeId, status) => {
+  return new Promise((resolve, reject) => {
+    const completedAt = status === 'accepted' || status === 'declined' || status === 'expired'
+      ? new Date().toISOString()
+      : null;
+
+    db.run(
+      'UPDATE trades SET status = ?, completed_at = ? WHERE id = ?',
+      [status, completedAt, tradeId],
+      (err) => {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
+};
+
+const validateTrade = async (tradeId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const trade = await getTrade(tradeId);
+      if (!trade) {
+        reject(new Error('Trade not found'));
+        return;
+      }
+
+      // Parse properties
+      const offeredProps = trade.offered_properties ? trade.offered_properties.split(',').filter(p => p) : [];
+      const requestedProps = trade.requested_properties ? trade.requested_properties.split(',').filter(p => p) : [];
+
+      // Validate proposer's offered properties
+      for (const propId of offeredProps) {
+        const property = await getProperty(parseInt(propId));
+        if (!property) {
+          reject(new Error(`Property ${propId} not found`));
+          return;
+        }
+        if (property.owner_id !== trade.proposer_id) {
+          reject(new Error(`Proposer does not own property ${propId}`));
+          return;
+        }
+        if (property.is_mortgaged) {
+          reject(new Error(`Cannot trade mortgaged property ${propId}`));
+          return;
+        }
+      }
+
+      // Validate receiver's requested properties
+      for (const propId of requestedProps) {
+        const property = await getProperty(parseInt(propId));
+        if (!property) {
+          reject(new Error(`Property ${propId} not found`));
+          return;
+        }
+        if (property.owner_id !== trade.receiver_id) {
+          reject(new Error(`Receiver does not own property ${propId}`));
+          return;
+        }
+        if (property.is_mortgaged) {
+          reject(new Error(`Cannot trade mortgaged property ${propId}`));
+          return;
+        }
+      }
+
+      // Validate currency balances
+      const proposerState = await getPlayerState(trade.proposer_id);
+      const receiverState = await getPlayerState(trade.receiver_id);
+
+      if (proposerState.game_balance < trade.offered_currency) {
+        reject(new Error('Proposer has insufficient currency'));
+        return;
+      }
+
+      if (receiverState.game_balance < trade.requested_currency) {
+        reject(new Error('Receiver has insufficient currency'));
+        return;
+      }
+
+      resolve({ valid: true, trade, offeredProps, requestedProps });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const executeTrade = async (tradeId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Validate first
+      const validation = await validateTrade(tradeId);
+      const { trade, offeredProps, requestedProps } = validation;
+
+      // Transfer properties from proposer to receiver
+      for (const propId of offeredProps) {
+        await updatePropertyOwner(parseInt(propId), trade.receiver_id);
+      }
+
+      // Transfer properties from receiver to proposer
+      for (const propId of requestedProps) {
+        await updatePropertyOwner(parseInt(propId), trade.proposer_id);
+      }
+
+      // Transfer currency from proposer to receiver
+      if (trade.offered_currency > 0) {
+        await new Promise((res, rej) => {
+          db.run(
+            'UPDATE game_state SET game_balance = game_balance - ? WHERE player_id = ?',
+            [trade.offered_currency, trade.proposer_id],
+            (err) => err ? rej(err) : res()
+          );
+        });
+        await new Promise((res, rej) => {
+          db.run(
+            'UPDATE game_state SET game_balance = game_balance + ? WHERE player_id = ?',
+            [trade.offered_currency, trade.receiver_id],
+            (err) => err ? rej(err) : res()
+          );
+        });
+      }
+
+      // Transfer currency from receiver to proposer
+      if (trade.requested_currency > 0) {
+        await new Promise((res, rej) => {
+          db.run(
+            'UPDATE game_state SET game_balance = game_balance - ? WHERE player_id = ?',
+            [trade.requested_currency, trade.receiver_id],
+            (err) => err ? rej(err) : res()
+          );
+        });
+        await new Promise((res, rej) => {
+          db.run(
+            'UPDATE game_state SET game_balance = game_balance + ? WHERE player_id = ?',
+            [trade.requested_currency, trade.proposer_id],
+            (err) => err ? rej(err) : res()
+          );
+        });
+      }
+
+      // Update trade status
+      await updateTradeStatus(tradeId, 'accepted');
+
+      resolve({
+        success: true,
+        offeredProps,
+        requestedProps,
+        offeredCurrency: trade.offered_currency,
+        requestedCurrency: trade.requested_currency
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 module.exports = {
   db,
   initializeDatabase,
@@ -1325,5 +1565,12 @@ module.exports = {
   getActiveAuction,
   placeBid,
   excludePlayerFromAuction,
-  finalizeAuction
+  finalizeAuction,
+  // Trade functions (Silence-Asset system)
+  createTrade,
+  getTrade,
+  getActiveTrade,
+  updateTradeStatus,
+  validateTrade,
+  executeTrade
 };
