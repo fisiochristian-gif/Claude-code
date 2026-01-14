@@ -117,8 +117,17 @@ async function handleLogin() {
         const user = await response.json();
         currentUser = user;
 
-        // Save to localStorage
+        // Save user and session token to localStorage
         localStorage.setItem('luncHorizonUser', JSON.stringify(user));
+
+        if (user.sessionToken) {
+            localStorage.setItem('lunc_session_token', user.sessionToken);
+
+            // Start session heartbeat
+            if (window.sessionRecovery) {
+                window.sessionRecovery.startHeartbeat(user.sessionToken);
+            }
+        }
 
         // Initialize Socket.IO
         initializeSocket();
@@ -142,6 +151,12 @@ function handleLogout() {
 
     currentUser = null;
     localStorage.removeItem('luncHorizonUser');
+
+    // Clear session and stop heartbeat
+    if (window.sessionRecovery) {
+        window.sessionRecovery.clearSession();
+        window.sessionRecovery.stopHeartbeat();
+    }
 
     loginScreen.classList.add('active');
     mainApp.classList.remove('active');

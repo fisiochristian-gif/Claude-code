@@ -7,6 +7,8 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 const db = require('./database');
+const TimerManager = require('./timer-manager');
+const botAI = require('./bot-ai');
 
 const app = express();
 const server = http.createServer(app);
@@ -32,6 +34,55 @@ const gameState = {
   timerActive: false,
   turnTimer: null
 };
+
+// Timer Manager - will be initialized after database
+let timerManager = null;
+
+// Function to initialize timer manager and register callbacks
+function initializeTimerManager() {
+  timerManager = new TimerManager(io);
+
+  // Register timer callbacks
+  timerManager.registerCallback('dice_roll', async (data) => {
+    console.log(`⚡ Auto-rolling dice for player ${data.playerId}`);
+    io.to(`table_${data.tableId}`).emit('game:auto-roll', {
+      playerId: data.playerId,
+      reason: 'timer_expired'
+    });
+  });
+
+  timerManager.registerCallback('trade_response', async (data) => {
+    console.log(`⚡ Auto-rejecting trade for player ${data.playerId}`);
+    io.to(`table_${data.tableId}`).emit('trade:auto-rejected', {
+      playerId: data.playerId,
+      reason: 'timer_expired'
+    });
+  });
+
+  timerManager.registerCallback('construction', async (data) => {
+    console.log(`⚡ Construction timer expired for player ${data.playerId}`);
+    io.to(`table_${data.tableId}`).emit('construction:phase-ended', {
+      playerId: data.playerId,
+      reason: 'timer_expired'
+    });
+  });
+
+  timerManager.registerCallback('bankruptcy', async (data) => {
+    console.log(`⚡ Bankruptcy timer expired for player ${data.playerId}`);
+    try {
+      await db.declareBankruptcy(data.playerId);
+      io.to(`table_${data.tableId}`).emit('player:bankrupt', {
+        playerId: data.playerId,
+        reason: 'debt_timeout',
+        automatic: true
+      });
+    } catch (error) {
+      console.error('Error in auto-bankruptcy:', error);
+    }
+  });
+
+  console.log('✅ Timer Manager initialized with callbacks');
+}
 
 // Initialize 24 properties for LUNOPOLY
 const initializeProperties = async () => {
@@ -118,10 +169,103 @@ app.post('/api/auth/login', async (req, res) => {
       await db.createPlayerState(idUnivoco, false);
     }
 
-    res.json(user);
+    // Create session for user
+    const session = await db.createPlayerSession(user.id_univoco);
+
+    res.json({
+      ...user,
+      sessionToken: session.sessionToken,
+      expiresAt: session.expiresAt
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Errore durante il login' });
+  }
+});
+
+// ================================
+// SESSION RECOVERY ENDPOINTS
+// ================================
+
+// Reconnect with session token
+app.post('/api/session/reconnect', async (req, res) => {
+  try {
+    const { sessionToken, userId, tableId } = req.body;
+
+    if (!sessionToken || !userId) {
+      return res.status(400).json({ error: 'sessionToken e userId richiesti' });
+    }
+
+    // Validate session
+    const session = await db.getSessionByToken(sessionToken);
+    if (!session || session.player_id !== userId) {
+      return res.status(401).json({ error: 'Sessione non valida o scaduta' });
+    }
+
+    // Update session heartbeat
+    await db.updateSessionHeartbeat(sessionToken);
+
+    // Get game snapshot if in a game
+    let gameSnapshot = null;
+    if (tableId) {
+      gameSnapshot = await db.getGameSnapshot(userId, tableId);
+    }
+
+    // Get user data
+    const user = await db.getUser(userId);
+
+    res.json({
+      success: true,
+      user,
+      gameSnapshot,
+      sessionValid: true,
+      reconnectedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Reconnection error:', error);
+    res.status(500).json({ error: 'Errore durante la riconnessione' });
+  }
+});
+
+// Get game snapshot for sync
+app.get('/api/session/snapshot/:userId/:tableId', async (req, res) => {
+  try {
+    const { userId, tableId } = req.params;
+
+    const snapshot = await db.getGameSnapshot(userId, parseInt(tableId));
+
+    res.json({
+      success: true,
+      snapshot
+    });
+
+  } catch (error) {
+    console.error('Snapshot error:', error);
+    res.status(500).json({ error: 'Errore recupero snapshot' });
+  }
+});
+
+// Session heartbeat
+app.post('/api/session/heartbeat', async (req, res) => {
+  try {
+    const { sessionToken } = req.body;
+
+    if (!sessionToken) {
+      return res.status(400).json({ error: 'sessionToken richiesto' });
+    }
+
+    const result = await db.updateSessionHeartbeat(sessionToken);
+
+    if (!result.updated) {
+      return res.status(404).json({ error: 'Sessione non trovata' });
+    }
+
+    res.json({ success: true, heartbeatAt: new Date().toISOString() });
+
+  } catch (error) {
+    console.error('Heartbeat error:', error);
+    res.status(500).json({ error: 'Errore heartbeat' });
   }
 });
 
@@ -1080,7 +1224,7 @@ app.post('/api/auction/start', async (req, res) => {
 // Place bid
 app.post('/api/auction/bid', async (req, res) => {
   try {
-    const { auctionId, playerId, bidAmount } = req.body;
+    const { auctionId, playerId, bidAmount, tableId } = req.body;
 
     const result = await db.placeBid(auctionId, playerId, bidAmount);
 
@@ -1092,6 +1236,11 @@ app.post('/api/auction/bid', async (req, res) => {
     });
 
     res.json({ success: true, ...result });
+
+    // Trigger bot bidding after human bid
+    if (tableId) {
+      triggerBotBidding(auctionId, tableId);
+    }
 
   } catch (error) {
     console.error('Bid error:', error);
@@ -1115,6 +1264,84 @@ async function finalizeAuctionAuto(auctionId) {
 
   } catch (error) {
     console.error('Finalize auction error:', error);
+  }
+}
+
+// ================================
+// BOT STRATEGIC AUCTION BIDDING
+// ================================
+
+async function triggerBotBidding(auctionId, tableId) {
+  try {
+    const auction = await db.getActiveAuction(auctionId);
+    if (!auction) return;
+
+    const property = await db.getProperty(auction.property_id);
+
+    // Get all bots at this table
+    const players = await db.getTablePlayers(tableId);
+    const bots = players.filter(p => p.is_bot && !p.is_bankrupt);
+
+    // Random delay between 1-3 seconds for natural feel
+    const bidDelay = 1000 + Math.random() * 2000;
+
+    setTimeout(async () => {
+      for (const bot of bots) {
+        // Skip if bot is excluded from auction
+        if (auction.excluded_players && auction.excluded_players.includes(bot.player_id)) {
+          continue;
+        }
+
+        // Skip if bot is current high bidder
+        if (auction.current_high_bidder === bot.player_id) {
+          continue;
+        }
+
+        try {
+          // Use AI to determine bid
+          const bidDecision = await botAI.calculateAuctionBid(
+            bot.player_id,
+            tableId,
+            property,
+            auction.current_bid,
+            auction.current_high_bidder
+          );
+
+          if (bidDecision.shouldBid) {
+            console.log(`🤖 Bot ${bot.player_id} bidding ${bidDecision.bidAmount}L (reason: ${bidDecision.reason})`);
+
+            // Place bot bid
+            const result = await db.placeBid(auctionId, bot.player_id, bidDecision.bidAmount);
+
+            // Broadcast bid
+            io.to(`table_${tableId}`).emit('auction:bid', {
+              auctionId,
+              playerId: bot.player_id,
+              bidAmount: bidDecision.bidAmount,
+              newEndsAt: result.newEndsAt,
+              isBot: true,
+              reason: bidDecision.reason
+            });
+
+            // Update bot strategy state
+            await botAI.updateBotStrategyState(bot.player_id, tableId);
+
+            // Trigger another round of bot bidding (recursive)
+            setTimeout(() => {
+              triggerBotBidding(auctionId, tableId);
+            }, 2000);
+
+            break; // One bot bids at a time
+          }
+
+        } catch (error) {
+          console.error(`Error in bot ${bot.player_id} bidding:`, error);
+        }
+      }
+    }, bidDelay);
+
+  } catch (error) {
+    console.error('Error triggering bot bidding:', error);
   }
 }
 
@@ -1864,11 +2091,43 @@ io.on('connection', (socket) => {
       if (user) {
         socket.userId = user.id_univoco;
         socket.username = user.username;
+        socket.sessionToken = userData.sessionToken;
         gameState.players.set(socket.id, user);
+
+        // Update connection status in database
+        await db.updatePlayerConnectionStatus(user.id_univoco, true, socket.id);
+
+        // Check if reconnecting to an active game
+        const playerState = await db.getPlayerState(user.id_univoco);
+        const isReconnecting = playerState && playerState.table_id && !playerState.is_bankrupt;
+
+        if (isReconnecting) {
+          console.log(`🔄 Player ${user.username} reconnecting to table ${playerState.table_id}`);
+
+          // Get game snapshot for reconnection
+          const snapshot = await db.getGameSnapshot(user.id_univoco, playerState.table_id);
+
+          // Rejoin socket room
+          socket.join(`table_${playerState.table_id}`);
+
+          // Send reconnection data to client
+          socket.emit('session:reconnected', {
+            message: 'Benvenuto! Riconnessione in corso...',
+            snapshot,
+            tableId: playerState.table_id
+          });
+
+          // Notify other players in the game
+          socket.to(`table_${playerState.table_id}`).emit('player:reconnected', {
+            playerId: user.id_univoco,
+            username: user.username
+          });
+        }
 
         io.emit('user:joined', {
           username: user.username,
-          totalPlayers: gameState.players.size
+          totalPlayers: gameState.players.size,
+          isReconnection: isReconnecting
         });
       }
     } catch (error) {
@@ -2004,8 +2263,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('Client disconnected:', socket.id);
+
+    // DON'T remove from gameState - implement session persistence
+    if (socket.userId) {
+      try {
+        // Mark player as disconnected but keep in game
+        await db.updatePlayerConnectionStatus(socket.userId, false, null);
+
+        console.log(`📡 Player ${socket.userId} disconnected but session persists`);
+
+        // Note: Timers continue running on server-side
+        // Player can reconnect and resume game state
+      } catch (error) {
+        console.error('Error handling disconnect:', error);
+      }
+    }
+
+    // Remove from in-memory player list only
     gameState.players.delete(socket.id);
   });
 });
@@ -2017,6 +2293,9 @@ const startServer = async () => {
     await initializeProperties();
     await db.initializeCards();
     await initializeBots();
+
+    // Initialize Timer Manager (after database is ready)
+    initializeTimerManager();
 
     // Check for monthly reset on startup
     const resetStatus = await db.checkMonthlyReset();

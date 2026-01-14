@@ -44,7 +44,7 @@ const initializeDatabase = () => {
         if (err) console.error('Error creating properties table:', err);
       });
 
-      // Game state table - Enhanced for lobby system and bankruptcy
+      // Game state table - Enhanced for lobby system, bankruptcy, and session persistence
       db.run(`
         CREATE TABLE IF NOT EXISTS game_state (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,6 +59,11 @@ const initializeDatabase = () => {
           is_bankrupt BOOLEAN DEFAULT 0,
           debt_amount INTEGER DEFAULT 0,
           bankruptcy_timer_started DATETIME,
+          session_id TEXT,
+          socket_id TEXT,
+          is_connected BOOLEAN DEFAULT 1,
+          last_connected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          last_action_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (player_id) REFERENCES users(id_univoco)
         )
@@ -366,17 +371,105 @@ const initializeDatabase = () => {
           FOREIGN KEY (user_id) REFERENCES users(id_univoco)
         )
       `, (err) => {
-        if (err) {
-          console.error('Error creating upvote_tracking table:', err);
-          reject(err);
-        } else {
+        if (err) console.error('Error creating upvote_tracking table:', err);
+      });
+
+      // Server-side timer tracking for session persistence
+      db.run(`
+        CREATE TABLE IF NOT EXISTS active_timers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          table_id INTEGER NOT NULL,
+          player_id TEXT NOT NULL,
+          timer_type TEXT NOT NULL,
+          action_type TEXT NOT NULL,
+          started_at DATETIME NOT NULL,
+          expires_at DATETIME NOT NULL,
+          duration_ms INTEGER NOT NULL,
+          auto_action TEXT,
+          is_active BOOLEAN DEFAULT 1,
+          completed_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (player_id) REFERENCES users(id_univoco),
+          FOREIGN KEY (table_id) REFERENCES game_tables(table_id)
+        )
+      `, (err) => {
+        if (err) console.error('Error creating active_timers table:', err);
+      });
+
+      // Bot strategic state tracking
+      db.run(`
+        CREATE TABLE IF NOT EXISTS bot_strategy_state (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bot_id TEXT NOT NULL,
+          table_id INTEGER NOT NULL,
+          target_color_sets TEXT,
+          partial_sets_owned TEXT,
+          liquidity_reserve INTEGER DEFAULT 150,
+          last_strategy_update DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(bot_id, table_id),
+          FOREIGN KEY (bot_id) REFERENCES users(id_univoco),
+          FOREIGN KEY (table_id) REFERENCES game_tables(table_id)
+        )
+      `, (err) => {
+        if (err) console.error('Error creating bot_strategy_state table:', err);
+      });
+
+      // Session recovery table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS player_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          player_id TEXT NOT NULL,
+          session_token TEXT UNIQUE NOT NULL,
+          table_id INTEGER,
+          wallet_address TEXT,
+          is_active BOOLEAN DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          last_heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
+          expires_at DATETIME,
+          FOREIGN KEY (player_id) REFERENCES users(id_univoco),
+          FOREIGN KEY (table_id) REFERENCES game_tables(table_id)
+        )
+      `, (err) => {
+        if (err) console.error('Error creating player_sessions table:', err);
+      });
+
+      // Migrate existing game_state records to add session fields
+      db.run(`
+        ALTER TABLE game_state ADD COLUMN session_id TEXT
+      `, (err) => {
+        // Ignore if column already exists
+      });
+
+      db.run(`
+        ALTER TABLE game_state ADD COLUMN socket_id TEXT
+      `, (err) => {
+        // Ignore if column already exists
+      });
+
+      db.run(`
+        ALTER TABLE game_state ADD COLUMN is_connected BOOLEAN DEFAULT 1
+      `, (err) => {
+        // Ignore if column already exists
+      });
+
+      db.run(`
+        ALTER TABLE game_state ADD COLUMN last_connected_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      `, (err) => {
+        // Ignore if column already exists
+      });
+
+      db.run(`
+        ALTER TABLE game_state ADD COLUMN last_action_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      `, (err) => {
+        // Ignore if column already exists
+        if (!err) {
           // Initialize 2 game tables
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (1, 'waiting')`, (err) => {
             if (err) console.error('Error initializing table 1:', err);
           });
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (2, 'waiting')`, (err) => {
             if (err) console.error('Error initializing table 2:', err);
-            console.log('Database initialized successfully with Minting & Social Persistence System');
+            console.log('Database initialized successfully with Session Persistence & Strategic Bot AI');
             resolve();
           });
         }
@@ -2435,6 +2528,461 @@ const checkOnlyBotsRemaining = (tableId) => {
   });
 };
 
+// ================================
+// SESSION PERSISTENCE FUNCTIONS
+// ================================
+
+// Create or update player session
+const createPlayerSession = (playerId, tableId = null, walletAddress = null) => {
+  return new Promise((resolve, reject) => {
+    const crypto = require('crypto');
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    db.run(
+      `INSERT INTO player_sessions (player_id, session_token, table_id, wallet_address, expires_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [playerId, sessionToken, tableId, walletAddress, expiresAt.toISOString()],
+      function(err) {
+        if (err) reject(err);
+        else resolve({
+          sessionId: this.lastID,
+          sessionToken,
+          expiresAt
+        });
+      }
+    );
+  });
+};
+
+// Update session heartbeat
+const updateSessionHeartbeat = (sessionToken) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE player_sessions
+       SET last_heartbeat = CURRENT_TIMESTAMP
+       WHERE session_token = ? AND is_active = 1`,
+      [sessionToken],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ updated: this.changes > 0 });
+      }
+    );
+  });
+};
+
+// Get session by token
+const getSessionByToken = (sessionToken) => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM player_sessions
+       WHERE session_token = ? AND is_active = 1 AND expires_at > datetime('now')`,
+      [sessionToken],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      }
+    );
+  });
+};
+
+// Update player connection status
+const updatePlayerConnectionStatus = (playerId, isConnected, socketId = null) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE game_state
+       SET is_connected = ?,
+           socket_id = ?,
+           last_connected_at = CURRENT_TIMESTAMP
+       WHERE player_id = ?`,
+      [isConnected ? 1 : 0, socketId, playerId],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ updated: this.changes > 0 });
+      }
+    );
+  });
+};
+
+// Get game snapshot for reconnection
+const getGameSnapshot = (playerId, tableId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Get player state
+      const playerState = await new Promise((res, rej) => {
+        db.get(
+          `SELECT * FROM game_state WHERE player_id = ? AND table_id = ?`,
+          [playerId, tableId],
+          (err, row) => {
+            if (err) rej(err);
+            else res(row);
+          }
+        );
+      });
+
+      // Get all players in game
+      const allPlayers = await new Promise((res, rej) => {
+        db.all(
+          `SELECT gs.*, u.username
+           FROM game_state gs
+           JOIN users u ON gs.player_id = u.id_univoco
+           WHERE gs.table_id = ?
+           ORDER BY gs.joined_at ASC`,
+          [tableId],
+          (err, rows) => {
+            if (err) rej(err);
+            else res(rows);
+          }
+        );
+      });
+
+      // Get all properties
+      const properties = await getProperties();
+
+      // Get active timers for this player
+      const activeTimers = await new Promise((res, rej) => {
+        db.all(
+          `SELECT * FROM active_timers
+           WHERE player_id = ? AND table_id = ? AND is_active = 1
+           ORDER BY expires_at ASC`,
+          [playerId, tableId],
+          (err, rows) => {
+            if (err) rej(err);
+            else res(rows);
+          }
+        );
+      });
+
+      // Get game table state
+      const tableState = await new Promise((res, rej) => {
+        db.get(
+          `SELECT * FROM game_tables WHERE table_id = ?`,
+          [tableId],
+          (err, row) => {
+            if (err) rej(err);
+            else res(row);
+          }
+        );
+      });
+
+      resolve({
+        playerState,
+        allPlayers,
+        properties,
+        activeTimers,
+        tableState,
+        reconnectedAt: new Date().toISOString()
+      });
+
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Create server-side timer
+const createServerTimer = (tableId, playerId, timerType, actionType, durationMs, autoAction = null) => {
+  return new Promise((resolve, reject) => {
+    const startedAt = new Date();
+    const expiresAt = new Date(startedAt.getTime() + durationMs);
+
+    db.run(
+      `INSERT INTO active_timers (table_id, player_id, timer_type, action_type, started_at, expires_at, duration_ms, auto_action)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tableId, playerId, timerType, actionType, startedAt.toISOString(), expiresAt.toISOString(), durationMs, autoAction],
+      function(err) {
+        if (err) reject(err);
+        else resolve({
+          timerId: this.lastID,
+          startedAt,
+          expiresAt,
+          durationMs
+        });
+      }
+    );
+  });
+};
+
+// Complete server-side timer
+const completeServerTimer = (timerId) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE active_timers
+       SET is_active = 0, completed_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [timerId],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ completed: this.changes > 0 });
+      }
+    );
+  });
+};
+
+// Get active timers for table
+const getActiveTimers = (tableId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT * FROM active_timers
+       WHERE table_id = ? AND is_active = 1
+       ORDER BY expires_at ASC`,
+      [tableId],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      }
+    );
+  });
+};
+
+// ================================
+// BOT STRATEGIC AI FUNCTIONS
+// ================================
+
+// Initialize or update bot strategy state
+const updateBotStrategy = (botId, tableId, strategyData) => {
+  return new Promise((resolve, reject) => {
+    const { targetColorSets, partialSetsOwned, liquidityReserve } = strategyData;
+
+    db.run(
+      `INSERT INTO bot_strategy_state (bot_id, table_id, target_color_sets, partial_sets_owned, liquidity_reserve)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(bot_id, table_id) DO UPDATE SET
+         target_color_sets = excluded.target_color_sets,
+         partial_sets_owned = excluded.partial_sets_owned,
+         liquidity_reserve = excluded.liquidity_reserve,
+         last_strategy_update = CURRENT_TIMESTAMP`,
+      [botId, tableId, JSON.stringify(targetColorSets), JSON.stringify(partialSetsOwned), liquidityReserve],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ updated: true });
+      }
+    );
+  });
+};
+
+// Get bot strategy state
+const getBotStrategy = (botId, tableId) => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM bot_strategy_state WHERE bot_id = ? AND table_id = ?`,
+      [botId, tableId],
+      (err, row) => {
+        if (err) reject(err);
+        else if (row) {
+          resolve({
+            ...row,
+            targetColorSets: JSON.parse(row.target_color_sets || '[]'),
+            partialSetsOwned: JSON.parse(row.partial_sets_owned || '[]')
+          });
+        } else {
+          resolve(null);
+        }
+      }
+    );
+  });
+};
+
+// Analyze color set completion for bot
+const analyzeBotColorSets = (botId, tableId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Get all properties owned by bot
+      const ownedProperties = await new Promise((res, rej) => {
+        db.all(
+          `SELECT * FROM properties WHERE owner_id = ?`,
+          [botId],
+          (err, rows) => {
+            if (err) rej(err);
+            else res(rows);
+          }
+        );
+      });
+
+      // Group by color
+      const colorGroups = {};
+      ownedProperties.forEach(prop => {
+        if (prop.color_group && prop.color_group !== 'special') {
+          if (!colorGroups[prop.color_group]) {
+            colorGroups[prop.color_group] = [];
+          }
+          colorGroups[prop.color_group].push(prop);
+        }
+      });
+
+      // Color set sizes (from LUNOPOLY design)
+      const colorSetSizes = {
+        'brown': 2,
+        'lightblue': 3,
+        'pink': 3,
+        'orange': 3,
+        'red': 3,
+        'yellow': 3,
+        'green': 3,
+        'darkblue': 2
+      };
+
+      // Identify completed and partial sets
+      const completedSets = [];
+      const partialSets = [];
+
+      Object.keys(colorGroups).forEach(color => {
+        const ownedCount = colorGroups[color].length;
+        const requiredCount = colorSetSizes[color];
+
+        if (ownedCount === requiredCount) {
+          completedSets.push({
+            color,
+            properties: colorGroups[color],
+            count: ownedCount
+          });
+        } else if (ownedCount > 0 && ownedCount < requiredCount) {
+          partialSets.push({
+            color,
+            properties: colorGroups[color],
+            ownedCount,
+            requiredCount,
+            missingCount: requiredCount - ownedCount
+          });
+        }
+      });
+
+      resolve({
+        completedSets,
+        partialSets,
+        allOwnedProperties: ownedProperties
+      });
+
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Calculate bot bid amount for auction (strategic)
+const calculateBotStrategicBid = async (botId, tableId, propertyId, currentBid) => {
+  try {
+    // Get bot's current balance
+    const botState = await getPlayerState(botId);
+    const availableCash = botState.game_balance;
+
+    // Get the property being auctioned
+    const property = await getProperty(propertyId);
+
+    // Analyze color sets
+    const colorAnalysis = await analyzeBotColorSets(botId, tableId);
+
+    // Check if this property completes a set
+    const wouldCompleteSet = colorAnalysis.partialSets.some(partial => {
+      return partial.color === property.color_group &&
+             partial.missingCount === 1;
+    });
+
+    // Strategic bidding logic
+    let maxBid = 0;
+    const LIQUIDITY_RESERVE = 150; // Keep 150L for rents
+
+    if (wouldCompleteSet) {
+      // AGGRESSIVE: Bid up to 80% of available cash (minus reserve)
+      maxBid = Math.floor((availableCash - LIQUIDITY_RESERVE) * 0.8);
+    } else {
+      // CONSERVATIVE: Bid up to 40% of property value
+      maxBid = Math.floor(property.price * 0.4);
+    }
+
+    // Ensure we have liquidity reserve
+    maxBid = Math.min(maxBid, availableCash - LIQUIDITY_RESERVE);
+
+    // Don't bid if we can't maintain reserve
+    if (maxBid <= 0) {
+      return { shouldBid: false, bidAmount: 0, reason: 'insufficient_liquidity' };
+    }
+
+    // Calculate actual bid (current bid + increment)
+    const bidIncrement = 10;
+    const proposedBid = currentBid + bidIncrement;
+
+    if (proposedBid > maxBid) {
+      return { shouldBid: false, bidAmount: 0, reason: 'exceeds_max_bid' };
+    }
+
+    return {
+      shouldBid: true,
+      bidAmount: proposedBid,
+      maxBid,
+      wouldCompleteSet,
+      reason: wouldCompleteSet ? 'completes_set' : 'strategic_purchase'
+    };
+
+  } catch (error) {
+    console.error('Error calculating bot bid:', error);
+    return { shouldBid: false, bidAmount: 0, reason: 'error' };
+  }
+};
+
+// Determine which properties bot should mortgage (smart mortgaging)
+const determineBotMortgagePriority = async (botId, tableId, debtAmount) => {
+  try {
+    // Get color set analysis
+    const colorAnalysis = await analyzeBotColorSets(botId, tableId);
+
+    // Get all owned properties not mortgaged
+    const unmortgagedProperties = colorAnalysis.allOwnedProperties.filter(p => !p.is_mortgaged);
+
+    // Priority: Single properties first, then incomplete sets, lastly complete sets
+    const mortgagePriority = [];
+
+    // 1. Single properties (not part of any set)
+    const singleProperties = unmortgagedProperties.filter(prop => {
+      const isPartOfSet = colorAnalysis.completedSets.some(set =>
+        set.properties.some(p => p.id === prop.id)
+      ) || colorAnalysis.partialSets.some(set =>
+        set.properties.some(p => p.id === prop.id)
+      );
+      return !isPartOfSet;
+    });
+
+    mortgagePriority.push(...singleProperties);
+
+    // 2. Properties from incomplete sets (partial sets)
+    colorAnalysis.partialSets.forEach(partial => {
+      const partialProperties = unmortgagedProperties.filter(prop =>
+        partial.properties.some(p => p.id === prop.id)
+      );
+      mortgagePriority.push(...partialProperties);
+    });
+
+    // 3. Properties from complete sets (last resort)
+    colorAnalysis.completedSets.forEach(complete => {
+      const completeProperties = unmortgagedProperties.filter(prop =>
+        complete.properties.some(p => p.id === prop.id)
+      );
+      mortgagePriority.push(...completeProperties);
+    });
+
+    // Calculate how many to mortgage
+    let totalMortgageValue = 0;
+    const propertiesToMortgage = [];
+
+    for (const prop of mortgagePriority) {
+      if (totalMortgageValue >= debtAmount) break;
+
+      propertiesToMortgage.push(prop);
+      totalMortgageValue += Math.floor(prop.price * 0.5); // 50% mortgage value
+    }
+
+    return {
+      propertiesToMortgage,
+      totalMortgageValue,
+      canCoverDebt: totalMortgageValue >= debtAmount
+    };
+
+  } catch (error) {
+    console.error('Error determining mortgage priority:', error);
+    return { propertiesToMortgage: [], totalMortgageValue: 0, canCoverDebt: false };
+  }
+};
+
 module.exports = {
   db,
   initializeDatabase,
@@ -2516,5 +3064,20 @@ module.exports = {
   recordMatchResult,
   updateMonthlyLeaderboard,
   getMonthlyLeaderboard,
-  checkOnlyBotsRemaining
+  checkOnlyBotsRemaining,
+  // Session persistence functions
+  createPlayerSession,
+  updateSessionHeartbeat,
+  getSessionByToken,
+  updatePlayerConnectionStatus,
+  getGameSnapshot,
+  createServerTimer,
+  completeServerTimer,
+  getActiveTimers,
+  // Bot strategic AI functions
+  updateBotStrategy,
+  getBotStrategy,
+  analyzeBotColorSets,
+  calculateBotStrategicBid,
+  determineBotMortgagePriority
 };
