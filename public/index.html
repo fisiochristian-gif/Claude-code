@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LUNC HORIZON - dApp</title>
+    <title>The RD Station - Blockchain Gaming Hub</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="styles-lunopoly-neon.css">
+    <link rel="stylesheet" href="styles-rd-station.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
@@ -15,8 +16,8 @@
     <div id="loginScreen" class="screen active">
         <div class="login-container">
             <div class="logo-container">
-                <h1 class="neon-text">LUNC HORIZON</h1>
-                <p class="subtitle">Blockchain Gaming & Social Platform</p>
+                <h1 class="neon-text rd-station-brand">THE RD STATION</h1>
+                <p class="subtitle">Your Gateway to Blockchain Gaming & Staking</p>
             </div>
             <div class="login-box">
                 <h2>Accesso Piattaforma</h2>
@@ -75,87 +76,25 @@
             </div>
         </header>
 
-        <!-- HUB Screen (Home) -->
+        <!-- THE RD STATION HUB (Home) -->
         <div id="hubScreen" class="page-container active">
-            <div class="hub-container">
-                <div class="hub-title">
-                    <h1 class="hub-neon-text">LUNC HORIZON</h1>
-                    <p class="hub-subtitle">Benvenuto, <span id="hubUsername">User</span></p>
-                </div>
-
-                <div class="hub-cards">
-                    <!-- Card 1: Area LUNOPOLY -->
-                    <div class="hub-card" data-page="lunopoly">
-                        <div class="hub-card-icon">🕹️</div>
-                        <h2 class="hub-card-title">AREA LUNOPOLY</h2>
-                        <p class="hub-card-description">Gioca a LUNOPOLY, gestisci il capitale e controlla la classifica</p>
-                        <div class="hub-card-features">
-                            <span class="feature-tag">🎲 Gioco Monopoly</span>
-                            <span class="feature-tag">📊 Dashboard Economica</span>
-                            <span class="feature-tag">🏆 Classifica</span>
-                        </div>
-                        <button class="hub-card-button">
-                            <span>ENTRA</span>
-                            <span class="arrow">→</span>
-                        </button>
-                    </div>
-
-                    <!-- Card 2: Social Wall -->
-                    <div class="hub-card" data-page="social">
-                        <div class="hub-card-icon">💬</div>
-                        <h2 class="hub-card-title">SOCIAL WALL</h2>
-                        <p class="hub-card-description">Chat in tempo reale con la community LUNC HORIZON</p>
-                        <div class="hub-card-features">
-                            <span class="feature-tag">💬 Chat Real-Time</span>
-                            <span class="feature-tag">🎯 +10 Punti per messaggio</span>
-                            <span class="feature-tag">⚡ 1 Credito/msg</span>
-                        </div>
-                        <button class="hub-card-button">
-                            <span>ENTRA</span>
-                            <span class="arrow">→</span>
-                        </button>
-                    </div>
-
-                    <!-- Card 3: Mission Control -->
-                    <div class="hub-card" data-page="mission">
-                        <div class="hub-card-icon">📈</div>
-                        <h2 class="hub-card-title">MISSION CONTROL</h2>
-                        <p class="hub-card-description">Completa missioni social e leggi il blog per guadagnare punti</p>
-                        <div class="hub-card-features">
-                            <span class="feature-tag">🎯 Social-to-Earn</span>
-                            <span class="feature-tag">📰 Blog Feed</span>
-                            <span class="feature-tag">🎁 Premi e Bonus</span>
-                        </div>
-                        <button class="hub-card-button">
-                            <span>ENTRA</span>
-                            <span class="arrow">→</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Connection Status -->
-                <div class="hub-footer">
-                    <div class="connection-indicator">
-                        <span class="status-dot" id="connectionStatus"></span>
-                        <span class="status-text">CONNESSO</span>
-                    </div>
-                </div>
+            <div id="rdStationHubContainer">
+                <!-- Hub content will be rendered by rd-station-hub.js -->
             </div>
         </div>
 
-        <!-- AREA LUNOPOLY Page -->
-        <div id="lunopolyPage" class="page-container">
+        <!-- STAKING HUB Page (Dashboard) -->
+        <div id="stakingPage" class="page-container">
             <div class="page-content">
                 <div class="page-tabs">
-                    <button class="tab-button active" data-tab="dashboard">📊 DASHBOARD</button>
-                    <button class="tab-button" data-tab="game">🎲 LUNOPOLY</button>
+                    <button class="tab-button active" data-tab="dashboard">📊 STAKING DASHBOARD</button>
                     <button class="tab-button" data-tab="leaderboard">🏆 CLASSIFICA</button>
                 </div>
 
                 <!-- Dashboard Tab -->
                 <div id="dashboardTab" class="tab-content active">
                     <div class="module-header">
-                        <h2>📊 DASHBOARD - Panoramica Economica</h2>
+                        <h2>📊 STAKING DASHBOARD - Panoramica Economica</h2>
                         <p class="module-description">Gestisci il tuo capitale e monitora le statistiche globali</p>
                     </div>
 
@@ -289,76 +228,6 @@
                     </div>
                 </div>
 
-                <!-- LUNOPOLY Game Tab -->
-                <div id="gameTab" class="tab-content">
-                    <div class="module-header">
-                        <h2>🎲 LUNOPOLY - Monopoli Blockchain</h2>
-                        <p class="module-description">Tabellone a 24 caselle | Buy-in: 50 Crediti | Capitale iniziale: 1,500 L</p>
-                    </div>
-
-                    <!-- Lobby Join Section -->
-                    <div class="lobby-join-section">
-                        <div class="lobby-info-card">
-                            <h3>🎮 PARTECIPA A LUNOPOLY</h3>
-                            <p>Buy-in: <strong>50 Crediti</strong> (dedotti dal tuo Staking Balance)</p>
-                            <p>Prize Pool totale: <strong>250 Crediti</strong> (distribuiti ai vincitori)</p>
-                            <p>Capitale di gioco iniziale: <strong>1,500 L</strong></p>
-                            <p>Tavoli attivi: <span id="activeTablesCount">0/2</span></p>
-                            <button id="joinLobbyBtn" class="cyber-button">
-                                <span>💰 ENTRA IN LOBBY (50 Crediti)</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="game-container">
-                        <div class="game-board" id="gameBoard">
-                            <!-- Il tabellone verrà generato dinamicamente -->
-                        </div>
-                        <div class="game-controls">
-                            <div class="game-info">
-                                <h3>Informazioni Partita</h3>
-                                <div class="info-item">
-                                    <span>Posizione:</span>
-                                    <span id="playerPosition">0</span>
-                                </div>
-                                <div class="info-item">
-                                    <span>Turno:</span>
-                                    <span id="currentTurn">In attesa...</span>
-                                </div>
-                            </div>
-                            <button id="rollDiceBtn" class="cyber-button action-btn">
-                                <span>🎲 LANCIA DADI</span>
-                            </button>
-
-                            <div id="diceResult" class="dice-result"></div>
-
-                            <div class="action-buttons-grid">
-                                <button id="buyBtn" class="action-button-small">
-                                    <span>💰 COMPRA</span>
-                                </button>
-                                <button id="auctionBtn" class="action-button-small">
-                                    <span>🔨 ASTA</span>
-                                </button>
-                                <button id="tradeBtn" class="action-button-small">
-                                    <span>🤝 SCAMBIA</span>
-                                </button>
-                                <button id="endTurnBtn" class="action-button-small">
-                                    <span>⏭️ FINE TURNO</span>
-                                </button>
-                            </div>
-
-                            <div class="timer-display">
-                                <span>Timer Automatico:</span>
-                                <span id="turnTimer">10s</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="game-log" id="gameLog">
-                        <h3>Log Eventi</h3>
-                        <div id="gameLogContent"></div>
-                    </div>
-                </div>
-
                 <!-- Leaderboard Tab -->
                 <div id="leaderboardTab" class="tab-content">
                     <div class="module-header">
@@ -383,6 +252,104 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME CENTER Page (Luncopoly) -->
+        <div id="gameCenterPage" class="page-container">
+            <div class="page-content">
+                <div class="module-header">
+                    <h2>🎲 GAME CENTER - Luncopoly</h2>
+                    <p class="module-description">Tabellone a 24 caselle | Buy-in: 50 Crediti | Capitale iniziale: 1,500 L</p>
+                </div>
+
+                <!-- Lobby Join Section -->
+                <div class="lobby-join-section">
+                    <div class="lobby-info-card">
+                        <h3>🎮 PARTECIPA A LUNCOPOLY</h3>
+                        <p>Buy-in: <strong>50 Crediti</strong> (dedotti dal tuo Staking Balance)</p>
+                        <p>Prize Pool totale: <strong>250 Crediti</strong> (distribuiti ai vincitori)</p>
+                        <p>Capitale di gioco iniziale: <strong>1,500 L</strong></p>
+                        <p>Tavoli attivi: <span id="activeTablesCount">0/2</span></p>
+                        <button id="joinLobbyBtn" class="cyber-button">
+                            <span>💰 ENTRA IN LOBBY (50 Crediti)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Game Container -->
+                <div class="game-container">
+                    <div class="game-board" id="gameBoard">
+                        <!-- Il tabellone verrà generato dinamicamente -->
+                    </div>
+                    <div class="game-controls">
+                        <div class="game-info">
+                            <h3>Informazioni Partita</h3>
+                            <div class="info-item">
+                                <span>Posizione:</span>
+                                <span id="playerPosition">0</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Turno:</span>
+                                <span id="currentTurn">In attesa...</span>
+                            </div>
+                        </div>
+                        <button id="rollDiceBtn" class="cyber-button action-btn">
+                            <span>🎲 LANCIA DADI</span>
+                        </button>
+
+                        <div id="diceResult" class="dice-result"></div>
+
+                        <div class="action-buttons-grid">
+                            <button id="buyBtn" class="action-button-small">
+                                <span>💰 COMPRA</span>
+                            </button>
+                            <button id="auctionBtn" class="action-button-small">
+                                <span>🔨 ASTA</span>
+                            </button>
+                            <button id="tradeBtn" class="action-button-small">
+                                <span>🤝 SCAMBIA</span>
+                            </button>
+                            <button id="endTurnBtn" class="action-button-small">
+                                <span>⏭️ FINE TURNO</span>
+                            </button>
+                        </div>
+
+                        <div class="timer-display">
+                            <span>Timer Automatico:</span>
+                            <span id="turnTimer">10s</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="game-log" id="gameLog">
+                    <h3>Log Eventi</h3>
+                    <div id="gameLogContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOCIAL REWARDS Page -->
+        <div id="socialRewardsPage" class="page-container">
+            <div id="socialTasksContainer">
+                <!-- Social tasks content will be rendered by social-tasks.js -->
+            </div>
+        </div>
+
+        <!-- RD INSIGHTS Page -->
+        <div id="rdInsightsPage" class="page-container">
+            <div class="page-content">
+                <div class="module-header">
+                    <h2>📰 RD INSIGHTS - Rendite Digitali Blog</h2>
+                    <p class="module-description">Latest insights and updates from the Rendite Digitali blog</p>
+                </div>
+                <div class="blog-iframe-container">
+                    <iframe id="rdInsightsBlogIframe"
+                            src="https://renditedigitali.blogspot.com"
+                            title="Rendite Digitali Blog"
+                            frameborder="0"
+                            allowfullscreen>
+                    </iframe>
                 </div>
             </div>
         </div>
@@ -528,6 +495,8 @@
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
+    <script src="modules/rd-station-hub.js"></script>
+    <script src="modules/social-tasks.js"></script>
     <script src="modules/dashboard.js"></script>
     <script src="modules/game.js"></script>
     <script src="modules/social.js"></script>

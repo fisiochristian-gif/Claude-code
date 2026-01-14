@@ -27,12 +27,15 @@ const connectionStatus = document.getElementById('connectionStatus');
 
 // Page Containers
 const hubScreen = document.getElementById('hubScreen');
-const lunopolyPage = document.getElementById('lunopolyPage');
+const stakingPage = document.getElementById('stakingPage');
+const gameCenterPage = document.getElementById('gameCenterPage');
+const socialRewardsPage = document.getElementById('socialRewardsPage');
+const rdInsightsPage = document.getElementById('rdInsightsPage');
 const socialPage = document.getElementById('socialPage');
 const missionPage = document.getElementById('missionPage');
 
-// Hub Cards
-const hubCards = document.querySelectorAll('.hub-card');
+// Hub Cards (will be dynamically generated)
+let hubCards = [];
 
 // Tabs
 const tabButtons = document.querySelectorAll('.tab-button');
@@ -64,16 +67,6 @@ function setupEventListeners() {
     // Home Button
     homeBtn.addEventListener('click', () => {
         switchPage('hub');
-    });
-
-    // Hub Cards Navigation
-    hubCards.forEach(card => {
-        card.addEventListener('click', () => {
-            const pageName = card.dataset.page;
-            if (pageName) {
-                switchPage(pageName);
-            }
-        });
     });
 
     // Tab Navigation
@@ -188,6 +181,11 @@ function showMainApp() {
 
     // Show Hub by default
     switchPage('hub');
+
+    // Initialize RD Station Hub
+    if (typeof initializeRDStationHub === 'function') {
+        initializeRDStationHub();
+    }
 }
 
 function updateUserDisplay() {
@@ -315,7 +313,7 @@ function switchPage(pageName) {
     console.log(`🔄 Switching to page: ${pageName}`);
 
     // Hide all pages
-    const pages = [hubScreen, lunopolyPage, socialPage, missionPage];
+    const pages = [hubScreen, stakingPage, gameCenterPage, socialRewardsPage, rdInsightsPage, socialPage, missionPage];
     pages.forEach(page => {
         if (page) {
             page.classList.remove('active');
@@ -328,15 +326,45 @@ function switchPage(pageName) {
     switch(pageName) {
         case 'hub':
             if (hubScreen) hubScreen.classList.add('active');
+            // Refresh hub data
+            if (typeof refreshRDStationHub === 'function') {
+                refreshRDStationHub();
+            }
             break;
 
-        case 'lunopoly':
-            if (lunopolyPage) lunopolyPage.classList.add('active');
+        case 'staking':
+        case 'dashboard':
+            if (stakingPage) stakingPage.classList.add('active');
             // Initialize dashboard tab by default
-            const lunopolyTabs = lunopolyPage.querySelector('.page-tabs');
-            if (lunopolyTabs) {
-                switchTab(lunopolyPage, 'dashboard');
+            switchTab(stakingPage, 'dashboard');
+            if (typeof initializeDashboard === 'function') {
+                initializeDashboard();
             }
+            break;
+
+        case 'game-center':
+        case 'lobby':
+            if (gameCenterPage) gameCenterPage.classList.add('active');
+            // Initialize game and lobby
+            if (typeof initializeLunopoly === 'function') {
+                initializeLunopoly();
+            }
+            if (typeof initializeLobby === 'function') {
+                initializeLobby();
+            }
+            break;
+
+        case 'social-rewards':
+        case 'social-tasks':
+            if (socialRewardsPage) socialRewardsPage.classList.add('active');
+            // Initialize social tasks module
+            if (typeof initializeSocialTasks === 'function') {
+                initializeSocialTasks();
+            }
+            break;
+
+        case 'rd-insights':
+            if (rdInsightsPage) rdInsightsPage.classList.add('active');
             break;
 
         case 'social':
@@ -451,12 +479,20 @@ function formatTimestamp(timestamp) {
     return `${hours}:${minutes}`;
 }
 
+// Navigation helper function for other modules
+function navigateTo(pageName) {
+    switchPage(pageName);
+}
+
 // Export for module access
 window.app = {
     socket,
     currentUser,
     API_BASE,
     formatTimestamp,
+    formatNumberDisplay,
     switchPage,
-    switchTab
+    switchTab,
+    navigateTo,
+    updateUserDisplay
 };
