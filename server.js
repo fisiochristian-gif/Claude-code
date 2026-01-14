@@ -38,36 +38,36 @@ const initializeProperties = async () => {
   const properties = await db.getProperties();
   if (properties.length === 0) {
     const propertyData = [
-      { position: 0, name: 'START', price: 0, rent: 0, color_group: 'special' },
-      { position: 1, name: 'Via Roma', price: 60, rent: 6, color_group: 'brown' },
-      { position: 2, name: 'Carta Comunità', price: 0, rent: 0, color_group: 'special' },
-      { position: 3, name: 'Via Napoli', price: 60, rent: 6, color_group: 'brown' },
-      { position: 4, name: 'Tassa', price: 0, rent: 0, color_group: 'special' },
-      { position: 5, name: 'Stazione Nord', price: 100, rent: 25, color_group: 'station' },
-      { position: 6, name: 'Via Milano', price: 100, rent: 10, color_group: 'lightblue' },
-      { position: 7, name: 'Probabilità', price: 0, rent: 0, color_group: 'special' },
-      { position: 8, name: 'Via Torino', price: 100, rent: 10, color_group: 'lightblue' },
-      { position: 9, name: 'Via Firenze', price: 120, rent: 12, color_group: 'lightblue' },
-      { position: 10, name: 'Prigione', price: 0, rent: 0, color_group: 'special' },
-      { position: 11, name: 'Via Venezia', price: 140, rent: 14, color_group: 'pink' },
-      { position: 12, name: 'Società Elettrica', price: 75, rent: 0, color_group: 'utility' },
-      { position: 13, name: 'Via Genova', price: 140, rent: 14, color_group: 'pink' },
-      { position: 14, name: 'Via Bologna', price: 160, rent: 16, color_group: 'pink' },
-      { position: 15, name: 'Stazione Sud', price: 100, rent: 25, color_group: 'station' },
-      { position: 16, name: 'Via Palermo', price: 180, rent: 18, color_group: 'orange' },
-      { position: 17, name: 'Carta Comunità', price: 0, rent: 0, color_group: 'special' },
-      { position: 18, name: 'Via Bari', price: 180, rent: 18, color_group: 'orange' },
-      { position: 19, name: 'Via Catania', price: 200, rent: 20, color_group: 'orange' },
-      { position: 20, name: 'Parcheggio Gratuito', price: 0, rent: 0, color_group: 'special' },
-      { position: 21, name: 'Via Verona', price: 220, rent: 22, color_group: 'red' },
-      { position: 22, name: 'Probabilità', price: 0, rent: 0, color_group: 'special' },
-      { position: 23, name: 'Via Parma', price: 240, rent: 24, color_group: 'red' }
+      { position: 0, name: 'VIA! (Ritira 200 L)', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 1, name: 'Newsletter Sub', price: 60, rent: 6, color_group: 'brown', house_price: 50 },
+      { position: 2, name: 'IMPREVISTI', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 3, name: 'Community Forum', price: 60, rent: 6, color_group: 'brown', house_price: 50 },
+      { position: 4, name: 'Tassa sul Burn', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 5, name: 'Twitter Raid', price: 100, rent: 10, color_group: 'lightblue', house_price: 50 },
+      { position: 6, name: 'Reddit Upvote', price: 100, rent: 10, color_group: 'lightblue', house_price: 50 },
+      { position: 7, name: 'PROBABILITÀ', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 8, name: 'Medium Article', price: 120, rent: 12, color_group: 'lightblue', house_price: 50 },
+      { position: 9, name: 'TRANSAZIONE SOSPESA', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 10, name: 'LUNC Burn Tax', price: 140, rent: 14, color_group: 'orange', house_price: 100 },
+      { position: 11, name: 'Proposal 11242', price: 140, rent: 14, color_group: 'orange', house_price: 100 },
+      { position: 12, name: 'IMPREVISTI', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 13, name: 'Staking Pool Alpha', price: 160, rent: 16, color_group: 'orange', house_price: 100 },
+      { position: 14, name: 'Binance Burn Party', price: 180, rent: 18, color_group: 'red', house_price: 100 },
+      { position: 15, name: 'PROBABILITÀ', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 16, name: 'Terra Station', price: 180, rent: 18, color_group: 'red', house_price: 100 },
+      { position: 17, name: 'Validator Node', price: 200, rent: 20, color_group: 'red', house_price: 100 },
+      { position: 18, name: 'SOSTA GRATUITA', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 19, name: 'RENDITE DIGITALI VIP', price: 220, rent: 22, color_group: 'purple', house_price: 150 },
+      { position: 20, name: 'MAINNET UPGRADE', price: 240, rent: 24, color_group: 'purple', house_price: 150 },
+      { position: 21, name: 'IMPREVISTI', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 22, name: 'VAI IN TRANSAZIONE SOSPESA', price: 0, rent: 0, color_group: 'special', house_price: 0 },
+      { position: 23, name: 'LUNC TO THE MOON', price: 260, rent: 26, color_group: 'gold', house_price: 150 }
     ];
 
     for (const prop of propertyData) {
       await db.db.run(
-        'INSERT INTO properties (position, name, price, rent, color_group) VALUES (?, ?, ?, ?, ?)',
-        [prop.position, prop.name, prop.price, prop.rent, prop.color_group]
+        'INSERT INTO properties (position, name, price, rent, color_group, house_price) VALUES (?, ?, ?, ?, ?, ?)',
+        [prop.position, prop.name, prop.price, prop.rent, prop.color_group, prop.house_price]
       );
     }
     console.log('Properties initialized');
@@ -1389,6 +1389,120 @@ app.get('/api/trade/active/:playerId', async (req, res) => {
   }
 });
 
+// ================================
+// CARD SYSTEM ENDPOINTS
+// ================================
+
+// Draw a card (IMPREVISTI or PROBABILITÀ)
+app.post('/api/cards/draw', async (req, res) => {
+  try {
+    const { tableId, playerId, cardType } = req.body;
+
+    if (!cardType || (cardType !== 'IMPREVISTI' && cardType !== 'PROBABILITÀ')) {
+      return res.status(400).json({ error: 'Invalid card type' });
+    }
+
+    // Draw random card
+    const card = await db.drawCard(cardType);
+
+    // Broadcast card draw to table
+    io.to(`table_${tableId}`).emit('card:drawn', {
+      tableId,
+      playerId,
+      card
+    });
+
+    res.json({
+      success: true,
+      card
+    });
+
+  } catch (error) {
+    console.error('Draw card error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Apply card effect
+app.post('/api/cards/apply', async (req, res) => {
+  try {
+    const { tableId, playerId, cardId } = req.body;
+
+    const card = await db.getCard(cardId);
+    if (!card) {
+      return res.status(404).json({ error: 'Card not found' });
+    }
+
+    const playerState = await db.getPlayerState(playerId);
+    if (!playerState) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    let result = { success: true, effect: card.effect_type };
+
+    switch (card.effect_type) {
+      case 'move_to':
+        // Move player to target position
+        await db.updatePlayerPosition(playerId, card.target_position);
+        result.newPosition = card.target_position;
+        break;
+
+      case 'pay_bank':
+        // Deduct L from player
+        await db.db.run(
+          'UPDATE game_state SET game_balance = game_balance - ? WHERE player_id = ?',
+          [card.effect_value, playerId]
+        );
+        result.amountPaid = card.effect_value;
+        break;
+
+      case 'receive_bank':
+        // Add L to player
+        await db.db.run(
+          'UPDATE game_state SET game_balance = game_balance + ? WHERE player_id = ?',
+          [card.effect_value, playerId]
+        );
+        result.amountReceived = card.effect_value;
+        break;
+
+      case 'collect_all':
+        // Collect from all players (handled by client/socket for now)
+        result.collectAmount = card.effect_value;
+        result.requiresPlayerInteraction = true;
+        break;
+
+      default:
+        return res.status(400).json({ error: 'Unknown effect type' });
+    }
+
+    // Broadcast effect application
+    io.to(`table_${tableId}`).emit('card:effect-applied', {
+      tableId,
+      playerId,
+      card,
+      result
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Apply card effect error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all cards (for debugging/admin)
+app.get('/api/cards', async (req, res) => {
+  try {
+    const { type } = req.query;
+    const cards = await db.getCards(type || null);
+    res.json(cards);
+  } catch (error) {
+    console.error('Get cards error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Socket.IO events
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
@@ -1551,6 +1665,7 @@ const startServer = async () => {
   try {
     await db.initializeDatabase();
     await initializeProperties();
+    await db.initializeCards();
     await initializeBots();
 
     // Check for monthly reset on startup

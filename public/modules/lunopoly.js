@@ -56,10 +56,32 @@ function renderBoard() {
 
     gameBoard.innerHTML = '';
 
+    // Add center board branding
+    const centerBoard = document.createElement('div');
+    centerBoard.className = 'board-center';
+    centerBoard.innerHTML = `
+        <div class="lunopoly-logo">LUNOPOLY</div>
+        <div class="powered-by">Powered by</div>
+        <div class="rendite-digitali">Rendite Digitali</div>
+        <div class="card-decks">
+            <div class="card-deck imprevisti" onclick="drawCard('IMPREVISTI')">
+                <div class="deck-label">IMPREVISTI</div>
+                <div class="deck-icon">🔴</div>
+            </div>
+            <div class="card-deck probabilita" onclick="drawCard('PROBABILITÀ')">
+                <div class="deck-label">PROBABILITÀ</div>
+                <div class="deck-icon">🔵</div>
+            </div>
+        </div>
+    `;
+    gameBoard.appendChild(centerBoard);
+
+    // Render board cells with color groups
     gameProperties.forEach((property, index) => {
         const cell = document.createElement('div');
         cell.className = 'board-cell';
         cell.dataset.position = property.position;
+        cell.dataset.colorGroup = property.color_group;
 
         if (property.position === playerPosition) {
             cell.classList.add('player-position');
@@ -69,11 +91,43 @@ function renderBoard() {
             cell.classList.add('owned');
         }
 
+        // Add color bar for property groups
+        let colorBar = '';
+        if (property.color_group && property.color_group !== 'special') {
+            const colorMap = {
+                'brown': '#8B4513',
+                'lightblue': '#87CEEB',
+                'orange': '#FFA500',
+                'red': '#FF4444',
+                'purple': '#9B59B6',
+                'gold': '#FFD700'
+            };
+            const color = colorMap[property.color_group] || '#CCCCCC';
+            colorBar = `<div class="color-bar" style="background: ${color};"></div>`;
+        }
+
+        // Calculate rent based on level
+        const baseRent = property.rent;
+        const level = property.level || 0;
+        const displayRent = level > 0 ? baseRent * Math.pow(2, level) : baseRent;
+
+        // Level indicators (houses/hotel)
+        let levelIndicator = '';
+        if (level > 0 && level < 5) {
+            levelIndicator = `<div class="level-indicator">${'🏠'.repeat(level)}</div>`;
+        } else if (level === 5) {
+            levelIndicator = `<div class="level-indicator">🏨</div>`;
+        }
+
         cell.innerHTML = `
+            ${colorBar}
             <span class="cell-position">#${property.position}</span>
             <div class="cell-name">${property.name}</div>
-            ${property.price > 0 ? `<div class="cell-price">${property.price}⚡</div>` : ''}
-            ${property.owner_id ? '<div class="cell-owner">👤</div>' : ''}
+            ${property.price > 0 ? `<div class="cell-price">💰 ${property.price} L</div>` : ''}
+            ${property.price > 0 ? `<div class="cell-rent">💸 ${displayRent} L/turno</div>` : ''}
+            ${levelIndicator}
+            ${property.owner_id ? '<div class="cell-owner">👤 Posseduta</div>' : ''}
+            ${property.is_mortgaged ? '<div class="cell-mortgaged">⚠️ Ipotecata</div>' : ''}
         `;
 
         cell.addEventListener('click', () => showPropertyDetails(property));
@@ -216,9 +270,141 @@ function addLogEntry(message) {
 }
 
 // ================================
+// CARD SYSTEM WITH 3D FLIP ANIMATION
+// ================================
+
+async function drawCard(cardType) {
+    if (!window.app.currentUser) {
+        alert('Devi essere autenticato per pescare una carta');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${window.app.API_BASE}/api/cards/draw`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tableId: 1,
+                playerId: window.app.currentUser.id_univoco,
+                cardType
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showCardWithFlipAnimation(result.card);
+        } else {
+            alert('Errore durante il pescaggio della carta');
+        }
+
+    } catch (error) {
+        console.error('Draw card error:', error);
+        alert('Errore durante il pescaggio della carta');
+    }
+}
+
+function showCardWithFlipAnimation(card) {
+    // Create card overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'card-overlay';
+    overlay.innerHTML = `
+        <div class="card-3d-container">
+            <div class="card-flipper">
+                <div class="card-front ${card.type === 'IMPREVISTI' ? 'card-red' : 'card-blue'}">
+                    <div class="card-type-label">${card.type}</div>
+                    <div class="card-icon">${card.type === 'IMPREVISTI' ? '🔴' : '🔵'}</div>
+                </div>
+                <div class="card-back ${card.type === 'IMPREVISTI' ? 'card-red' : 'card-blue'}">
+                    <div class="card-title">${card.title}</div>
+                    <div class="card-description">${card.description}</div>
+                    <div class="card-branding">${card.branding_text}</div>
+                    <button class="apply-card-btn" onclick="applyCardEffect(${card.id})">Applica Effetto</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Trigger flip animation after short delay
+    setTimeout(() => {
+        const flipper = overlay.querySelector('.card-flipper');
+        flipper.classList.add('flipped');
+    }, 300);
+
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+
+    // Store current card
+    window.currentCard = card;
+}
+
+async function applyCardEffect(cardId) {
+    if (!window.app.currentUser) return;
+
+    try {
+        const response = await fetch(`${window.app.API_BASE}/api/cards/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tableId: 1,
+                playerId: window.app.currentUser.id_univoco,
+                cardId
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show effect result
+            let message = '';
+            switch (result.effect) {
+                case 'move_to':
+                    message = `Ti sei spostato alla posizione ${result.newPosition}!`;
+                    playerPosition = result.newPosition;
+                    playerPositionDisplay.textContent = result.newPosition;
+                    renderBoard();
+                    break;
+                case 'pay_bank':
+                    message = `Hai pagato ${result.amountPaid} L alla Banca!`;
+                    break;
+                case 'receive_bank':
+                    message = `Hai ricevuto ${result.amountReceived} L dalla Banca!`;
+                    break;
+                case 'collect_all':
+                    message = `Ogni giocatore deve pagarti ${result.collectAmount} L!`;
+                    break;
+            }
+
+            addLogEntry(message);
+            alert(message);
+
+            // Close card overlay
+            const overlay = document.querySelector('.card-overlay');
+            if (overlay) overlay.remove();
+
+            // Reload properties to update board
+            await loadProperties();
+            renderBoard();
+        }
+
+    } catch (error) {
+        console.error('Apply card effect error:', error);
+        alert('Errore durante l\'applicazione dell\'effetto');
+    }
+}
+
+// ================================
 // EXPORTS
 // ================================
 
 window.initializeLunopoly = initializeLunopoly;
 window.handleGameRoll = handleGameRoll;
 window.handleGamePurchase = handleGamePurchase;
+window.drawCard = drawCard;
+window.applyCardEffect = applyCardEffect;

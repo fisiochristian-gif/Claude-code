@@ -2763,3 +2763,381 @@ body::before {
         gap: 0.3rem;
     }
 }
+
+/* ================================================
+   LUNOPOLY BOARD ENHANCEMENTS
+   ================================================ */
+
+/* Board Center Branding */
+.board-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.lunopoly-logo {
+    font-size: 3.5rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 215, 0, 0.5);
+    font-family: 'Arial Black', sans-serif;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+    animation: neonGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes neonGlow {
+    from {
+        filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+    }
+    to {
+        filter: drop-shadow(0 0 25px rgba(255, 215, 0, 1));
+    }
+}
+
+.powered-by {
+    font-size: 0.9rem;
+    color: #888;
+    margin-bottom: 0.3rem;
+}
+
+.rendite-digitali {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #00d4ff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    margin-bottom: 1.5rem;
+}
+
+.card-decks {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    margin-top: 2rem;
+    pointer-events: all;
+}
+
+.card-deck {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid;
+    border-radius: 12px;
+    padding: 1rem;
+    width: 120px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.card-deck.imprevisti {
+    border-color: #ff4444;
+    box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+}
+
+.card-deck.probabilita {
+    border-color: #4444ff;
+    box-shadow: 0 0 15px rgba(68, 68, 255, 0.3);
+}
+
+.card-deck:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.3);
+}
+
+.deck-label {
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: white;
+}
+
+.deck-icon {
+    font-size: 2.5rem;
+}
+
+/* Enhanced Board Cells */
+.board-cell {
+    position: relative;
+    overflow: hidden;
+}
+
+.color-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    z-index: 1;
+}
+
+.cell-position {
+    position: absolute;
+    top: 10px;
+    right: 8px;
+    font-size: 0.7rem;
+    color: #666;
+    font-weight: bold;
+    z-index: 2;
+}
+
+.cell-name {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #00d4ff;
+    margin-top: 12px;
+    margin-bottom: 0.3rem;
+    padding: 0 5px;
+}
+
+.cell-price {
+    font-size: 0.75rem;
+    color: #FFD700;
+    margin: 0.2rem 0;
+}
+
+.cell-rent {
+    font-size: 0.7rem;
+    color: #00ff88;
+    margin: 0.2rem 0;
+}
+
+.level-indicator {
+    font-size: 1rem;
+    margin: 0.3rem 0;
+}
+
+.cell-owner {
+    font-size: 0.7rem;
+    color: #ff6b6b;
+    margin-top: 0.3rem;
+    font-weight: bold;
+}
+
+.cell-mortgaged {
+    font-size: 0.7rem;
+    color: #ff9900;
+    background: rgba(255, 153, 0, 0.2);
+    padding: 2px 4px;
+    border-radius: 3px;
+    margin-top: 0.3rem;
+}
+
+.board-cell.player-position {
+    border: 3px solid #00ff88;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.6), inset 0 0 20px rgba(0, 255, 136, 0.2);
+    animation: playerPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes playerPulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.6), inset 0 0 20px rgba(0, 255, 136, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(0, 255, 136, 0.9), inset 0 0 30px rgba(0, 255, 136, 0.4);
+    }
+}
+
+/* ================================================
+   3D CARD FLIP ANIMATION
+   ================================================ */
+
+.card-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.card-3d-container {
+    perspective: 1000px;
+    width: 400px;
+    height: 550px;
+}
+
+.card-flipper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.8s;
+    transform-style: preserve-3d;
+}
+
+.card-flipper.flipped {
+    transform: rotateY(180deg);
+}
+
+.card-front,
+.card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-front {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 3px solid;
+}
+
+.card-back {
+    transform: rotateY(180deg);
+    background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+    border: 3px solid;
+    padding: 2.5rem;
+}
+
+.card-red {
+    border-color: #ff4444 !important;
+    box-shadow: 0 20px 60px rgba(255, 68, 68, 0.4) !important;
+}
+
+.card-blue {
+    border-color: #4444ff !important;
+    box-shadow: 0 20px 60px rgba(68, 68, 255, 0.4) !important;
+}
+
+.card-type-label {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.card-icon {
+    font-size: 8rem;
+    animation: cardIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes cardIconPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.card-title {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #FFD700;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    text-shadow: 0 2px 10px rgba(255, 215, 0, 0.5);
+}
+
+.card-description {
+    font-size: 1.1rem;
+    color: white;
+    line-height: 1.6;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+}
+
+.card-branding {
+    font-size: 0.9rem;
+    color: #00d4ff;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+    padding: 0.5rem;
+    border-top: 1px solid rgba(0, 212, 255, 0.3);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.apply-card-btn {
+    background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(0, 212, 255, 0.3);
+}
+
+.apply-card-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 212, 255, 0.5);
+    background: linear-gradient(135deg, #00e6ff 0%, #00b8e6 100%);
+}
+
+.apply-card-btn:active {
+    transform: translateY(0);
+}
+
+/* Mobile Responsiveness for Cards */
+@media (max-width: 768px) {
+    .board-center {
+        transform: translate(-50%, -50%) scale(0.7);
+    }
+
+    .card-3d-container {
+        width: 90vw;
+        max-width: 350px;
+        height: 480px;
+    }
+
+    .card-title {
+        font-size: 1.4rem;
+    }
+
+    .card-description {
+        font-size: 0.95rem;
+    }
+
+    .card-branding {
+        font-size: 0.8rem;
+    }
+
+    .lunopoly-logo {
+        font-size: 2rem;
+    }
+
+    .card-decks {
+        gap: 1rem;
+    }
+
+    .card-deck {
+        width: 90px;
+        padding: 0.7rem;
+    }
+
+    .deck-icon {
+        font-size: 2rem;
+    }
+}

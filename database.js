@@ -234,6 +234,26 @@ const initializeDatabase = () => {
         if (err) {
           console.error('Error creating trades table:', err);
           reject(err);
+        }
+      });
+
+      // Cards table for IMPREVISTI and PROBABILITÀ card system
+      db.run(`
+        CREATE TABLE IF NOT EXISTS cards (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          effect_type TEXT NOT NULL,
+          effect_value INTEGER,
+          target_position INTEGER,
+          branding_text TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `, (err) => {
+        if (err) {
+          console.error('Error creating cards table:', err);
+          reject(err);
         } else {
           // Initialize 2 game tables
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (1, 'waiting')`, (err) => {
@@ -241,7 +261,7 @@ const initializeDatabase = () => {
           });
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (2, 'waiting')`, (err) => {
             if (err) console.error('Error initializing table 2:', err);
-            console.log('Database initialized successfully with Silence-Asset Trade System');
+            console.log('Database initialized successfully with Card System');
             resolve();
           });
         }
@@ -1512,6 +1532,121 @@ const executeTrade = async (tradeId) => {
   });
 };
 
+// ================================
+// CARD SYSTEM FUNCTIONS
+// ================================
+
+const initializeCards = async () => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT COUNT(*) as count FROM cards', async (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      if (row.count === 0) {
+        const cardsData = [
+          // IMPREVISTI (Red Cards) - 16 cards
+          { type: 'IMPREVISTI', title: 'Analisi di Mercato', description: 'Hai seguito l\'analisi di Rendite Digitali sul Blog. Vai avanti fino a Medium Article!', effect_type: 'move_to', target_position: 8, branding_text: 'Rendite Digitali - Blog Analysis' },
+          { type: 'IMPREVISTI', title: 'Errore di Calcolo', description: 'Hai sbagliato i calcoli nel tuo portfolio. Paga 50 L alla Banca per risistemare.', effect_type: 'pay_bank', effect_value: 50, branding_text: 'Rendite Digitali - Risk Management' },
+          { type: 'IMPREVISTI', title: 'Airdrop Vincente', description: 'Hai partecipato all\'Airdrop promosso da Rendite Digitali! Ricevi 100 L dalla Banca.', effect_type: 'receive_bank', effect_value: 100, branding_text: 'Rendite Digitali - Airdrop Campaign' },
+          { type: 'IMPREVISTI', title: 'Tassa Burn', description: 'Il burn tax è aumentato. Paga 30 L alla Banca per ogni transazione recente.', effect_type: 'pay_bank', effect_value: 30, branding_text: 'Rendite Digitali - LUNC Burn Tax' },
+          { type: 'IMPREVISTI', title: 'Strategia Vincente', description: 'Hai applicato la strategia di Rendite Digitali! Ricevi 80 L dalla Banca.', effect_type: 'receive_bank', effect_value: 80, branding_text: 'Rendite Digitali - Trading Strategy' },
+          { type: 'IMPREVISTI', title: 'Validator Ricompensa', description: 'Il tuo Validator Node genera ricompense. Ogni giocatore ti paga 25 L!', effect_type: 'collect_all', effect_value: 25, branding_text: 'Rendite Digitali - Validator Rewards' },
+          { type: 'IMPREVISTI', title: 'Vai in Transazione Sospesa', description: 'La tua transazione è stata bloccata per verifica. Vai direttamente in TRANSAZIONE SOSPESA.', effect_type: 'move_to', target_position: 9, branding_text: 'Rendite Digitali - Security Check' },
+          { type: 'IMPREVISTI', title: 'Proposta Approvata', description: 'La tua proposta sul forum è stata approvata! Vai a Proposal 11242.', effect_type: 'move_to', target_position: 11, branding_text: 'Rendite Digitali - Community Governance' },
+          { type: 'IMPREVISTI', title: 'Audit Fallito', description: 'Il tuo smart contract ha fallito l\'audit. Paga 70 L alla Banca per correzioni.', effect_type: 'pay_bank', effect_value: 70, branding_text: 'Rendite Digitali - Smart Contract Audit' },
+          { type: 'IMPREVISTI', title: 'Rendita Passiva', description: 'Hai seguito le guide di Rendite Digitali! Ricevi 120 L dalla Banca.', effect_type: 'receive_bank', effect_value: 120, branding_text: 'Rendite Digitali - Passive Income' },
+          { type: 'IMPREVISTI', title: 'Partnership Bonus', description: 'Rendite Digitali annuncia una partnership! Vai a RENDITE DIGITALI VIP.', effect_type: 'move_to', target_position: 19, branding_text: 'Rendite Digitali - VIP Partnership' },
+          { type: 'IMPREVISTI', title: 'Penalità di Rete', description: 'La rete Terra è congestionata. Paga 40 L alla Banca per gas fees.', effect_type: 'pay_bank', effect_value: 40, branding_text: 'Rendite Digitali - Network Fees' },
+          { type: 'IMPREVISTI', title: 'Bounty Completato', description: 'Hai completato il bounty di Rendite Digitali! Ricevi 90 L dalla Banca.', effect_type: 'receive_bank', effect_value: 90, branding_text: 'Rendite Digitali - Bug Bounty' },
+          { type: 'IMPREVISTI', title: 'Donazione Forzata', description: 'Evento di beneficenza promosso da Rendite Digitali! Ogni giocatore ti dona 15 L.', effect_type: 'collect_all', effect_value: 15, branding_text: 'Rendite Digitali - Charity Event' },
+          { type: 'IMPREVISTI', title: 'Hack Recuperato', description: 'Rendite Digitali ti ha aiutato a recuperare fondi rubati! Ricevi 150 L dalla Banca.', effect_type: 'receive_bank', effect_value: 150, branding_text: 'Rendite Digitali - Security Team' },
+          { type: 'IMPREVISTI', title: 'Vai al VIA!', description: 'Torna all\'inizio! Vai a VIA! e ritira i tuoi 200 L.', effect_type: 'move_to', target_position: 0, branding_text: 'Rendite Digitali - Fresh Start' },
+
+          // PROBABILITÀ (Blue Cards) - 16 cards
+          { type: 'PROBABILITÀ', title: 'Staking Ricompensa', description: 'Il tuo staking pool genera profitti! Ricevi 110 L dalla Banca.', effect_type: 'receive_bank', effect_value: 110, branding_text: 'Rendite Digitali - Staking Rewards' },
+          { type: 'PROBABILITÀ', title: 'Commissione Exchange', description: 'Binance applica commissioni extra. Paga 35 L alla Banca.', effect_type: 'pay_bank', effect_value: 35, branding_text: 'Rendite Digitali - Exchange Fees' },
+          { type: 'PROBABILITÀ', title: 'Burn Party Success', description: 'Hai partecipato al Binance Burn Party! Vai a Binance Burn Party.', effect_type: 'move_to', target_position: 14, branding_text: 'Rendite Digitali - Burn Event' },
+          { type: 'PROBABILITÀ', title: 'Tutorial Premium', description: 'Hai completato il tutorial premium di Rendite Digitali! Ricevi 75 L dalla Banca.', effect_type: 'receive_bank', effect_value: 75, branding_text: 'Rendite Digitali - Premium Tutorial' },
+          { type: 'PROBABILITÀ', title: 'Tassa Imprevista', description: 'Tassa governativa sulle crypto. Paga 60 L alla Banca.', effect_type: 'pay_bank', effect_value: 60, branding_text: 'Rendite Digitali - Regulatory Compliance' },
+          { type: 'PROBABILITÀ', title: 'Referral Bonus', description: 'Il tuo link referral di Rendite Digitali ha funzionato! Ogni giocatore ti paga 20 L!', effect_type: 'collect_all', effect_value: 20, branding_text: 'Rendite Digitali - Referral Program' },
+          { type: 'PROBABILITÀ', title: 'Mainnet Upgrade', description: 'È uscito il Mainnet Upgrade! Vai a MAINNET UPGRADE.', effect_type: 'move_to', target_position: 20, branding_text: 'Rendite Digitali - Tech Update' },
+          { type: 'PROBABILITÀ', title: 'Newsletter Reward', description: 'Hai letto la newsletter di Rendite Digitali! Ricevi 65 L dalla Banca.', effect_type: 'receive_bank', effect_value: 65, branding_text: 'Rendite Digitali - Newsletter Sub' },
+          { type: 'PROBABILITÀ', title: 'Slippage Elevato', description: 'Lo slippage nel tuo trade è troppo alto. Paga 45 L alla Banca.', effect_type: 'pay_bank', effect_value: 45, branding_text: 'Rendite Digitali - Trading Loss' },
+          { type: 'PROBABILITÀ', title: 'Social Campaign', description: 'Hai vinto la campagna social di Rendite Digitali! Vai a Twitter Raid.', effect_type: 'move_to', target_position: 5, branding_text: 'Rendite Digitali - Social Media' },
+          { type: 'PROBABILITÀ', title: 'DCA Strategy', description: 'La tua strategia DCA ha funzionato! Ricevi 95 L dalla Banca.', effect_type: 'receive_bank', effect_value: 95, branding_text: 'Rendite Digitali - DCA Method' },
+          { type: 'PROBABILITÀ', title: 'Liquidazione Evitata', description: 'Rendite Digitali ti ha avvisato in tempo! Paga 25 L alla Banca per chiudere la posizione.', effect_type: 'pay_bank', effect_value: 25, branding_text: 'Rendite Digitali - Risk Alert' },
+          { type: 'PROBABILITÀ', title: 'Webinar Esclusivo', description: 'Hai partecipato al webinar VIP di Rendite Digitali! Ogni giocatore ti paga 30 L!', effect_type: 'collect_all', effect_value: 30, branding_text: 'Rendite Digitali - VIP Webinar' },
+          { type: 'PROBABILITÀ', title: 'Vai a Terra Station', description: 'Delegare su Terra Station! Vai a Terra Station.', effect_type: 'move_to', target_position: 16, branding_text: 'Rendite Digitali - Delegation' },
+          { type: 'PROBABILITÀ', title: 'Corso Completato', description: 'Hai finito il corso crypto di Rendite Digitali! Ricevi 130 L dalla Banca.', effect_type: 'receive_bank', effect_value: 130, branding_text: 'Rendite Digitali - Education' },
+          { type: 'PROBABILITÀ', title: 'LUNC TO THE MOON', description: 'LUNC raggiunge nuovi massimi! Vai a LUNC TO THE MOON!', effect_type: 'move_to', target_position: 23, branding_text: 'Rendite Digitali - Bull Run' }
+        ];
+
+        try {
+          for (const card of cardsData) {
+            await new Promise((res, rej) => {
+              db.run(
+                `INSERT INTO cards (type, title, description, effect_type, effect_value, target_position, branding_text)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [card.type, card.title, card.description, card.effect_type, card.effect_value || null, card.target_position || null, card.branding_text],
+                (err) => err ? rej(err) : res()
+              );
+            });
+          }
+          console.log('32 Cards initialized (16 IMPREVISTI + 16 PROBABILITÀ)');
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      } else {
+        resolve();
+      }
+    });
+  });
+};
+
+const getCards = (type = null) => {
+  return new Promise((resolve, reject) => {
+    const query = type ? 'SELECT * FROM cards WHERE type = ?' : 'SELECT * FROM cards';
+    const params = type ? [type] : [];
+
+    db.all(query, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
+
+const drawCard = (type) => {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM cards WHERE type = ?', [type], (err, rows) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      if (rows.length === 0) {
+        reject(new Error(`No cards found for type ${type}`));
+        return;
+      }
+
+      // Random card selection
+      const randomIndex = Math.floor(Math.random() * rows.length);
+      resolve(rows[randomIndex]);
+    });
+  });
+};
+
+const getCard = (cardId) => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM cards WHERE id = ?', [cardId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
 module.exports = {
   db,
   initializeDatabase,
@@ -1572,5 +1707,10 @@ module.exports = {
   getActiveTrade,
   updateTradeStatus,
   validateTrade,
-  executeTrade
+  executeTrade,
+  // Card system functions
+  initializeCards,
+  getCards,
+  drawCard,
+  getCard
 };
