@@ -35,6 +35,9 @@ const initializeDatabase = () => {
           rent INTEGER NOT NULL,
           level INTEGER DEFAULT 0,
           color_group TEXT,
+          house_price INTEGER DEFAULT 50,
+          is_mortgaged BOOLEAN DEFAULT 0,
+          mortgage_value INTEGER,
           FOREIGN KEY (owner_id) REFERENCES users(id_univoco)
         )
       `, (err) => {
@@ -181,6 +184,28 @@ const initializeDatabase = () => {
         if (err) {
           console.error('Error creating game_tables table:', err);
           reject(err);
+        }
+      });
+
+      // Auctions table for property bidding system
+      db.run(`
+        CREATE TABLE IF NOT EXISTS auctions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          table_id INTEGER NOT NULL,
+          property_id INTEGER NOT NULL,
+          status TEXT DEFAULT 'active',
+          current_bid INTEGER DEFAULT 0,
+          current_bidder_id TEXT,
+          excluded_players TEXT,
+          started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          ends_at DATETIME,
+          FOREIGN KEY (property_id) REFERENCES properties(id),
+          FOREIGN KEY (current_bidder_id) REFERENCES users(id_univoco)
+        )
+      `, (err) => {
+        if (err) {
+          console.error('Error creating auctions table:', err);
+          reject(err);
         } else {
           // Initialize 2 game tables
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (1, 'waiting')`, (err) => {
@@ -188,7 +213,7 @@ const initializeDatabase = () => {
           });
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (2, 'waiting')`, (err) => {
             if (err) console.error('Error initializing table 2:', err);
-            console.log('Database initialized successfully with Lobby & Matchmaking schema');
+            console.log('Database initialized successfully with Blitz Turn Engine schema');
             resolve();
           });
         }
@@ -948,6 +973,305 @@ const resetGameTable = (tableId) => {
   });
 };
 
+// ================================
+// CONSTRUCTION & MORTGAGE FUNCTIONS
+// ================================
+
+const mortgageProperty = (propertyId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const property = await getProperty(propertyId);
+      if (!property) {
+        reject(new Error('Property not found'));
+        return;
+      }
+
+      if (property.is_mortgaged) {
+        reject(new Error('Property already mortgaged'));
+        return;
+      }
+
+      if (property.level > 0) {
+        reject(new Error('Cannot mortgage property with buildings'));
+        return;
+      }
+
+      const mortgageValue = Math.floor(property.price * 0.5);
+
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE properties SET is_mortgaged = 1, mortgage_value = ? WHERE id = ?',
+          [mortgageValue, propertyId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      resolve({ mortgageValue, property });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const unmortgageProperty = (propertyId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const property = await getProperty(propertyId);
+      if (!property) {
+        reject(new Error('Property not found'));
+        return;
+      }
+
+      if (!property.is_mortgaged) {
+        reject(new Error('Property not mortgaged'));
+        return;
+      }
+
+      // Cost to unmortgage is 110% of mortgage value
+      const unmortgageCost = Math.floor(property.mortgage_value * 1.1);
+
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE properties SET is_mortgaged = 0, mortgage_value = NULL WHERE id = ?',
+          [propertyId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      resolve({ unmortgageCost, property });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const upgradePropertyLevel = (propertyId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const property = await getProperty(propertyId);
+      if (!property) {
+        reject(new Error('Property not found'));
+        return;
+      }
+
+      if (property.is_mortgaged) {
+        reject(new Error('Cannot build on mortgaged property'));
+        return;
+      }
+
+      if (property.level >= 5) {
+        reject(new Error('Property already has maximum level (Hotel)'));
+        return;
+      }
+
+      const upgradeCost = property.house_price;
+      const newLevel = property.level + 1;
+
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE properties SET level = ? WHERE id = ?',
+          [newLevel, propertyId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      resolve({ upgradeCost, newLevel, property });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const downgradePropertyLevel = (propertyId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const property = await getProperty(propertyId);
+      if (!property) {
+        reject(new Error('Property not found'));
+        return;
+      }
+
+      if (property.level <= 0) {
+        reject(new Error('Property has no buildings to sell'));
+        return;
+      }
+
+      const sellValue = Math.floor(property.house_price * 0.5);
+      const newLevel = property.level - 1;
+
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE properties SET level = ? WHERE id = ?',
+          [newLevel, propertyId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      resolve({ sellValue, newLevel, property });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// ================================
+// AUCTION FUNCTIONS
+// ================================
+
+const createAuction = (tableId, propertyId, startingBid = 1) => {
+  return new Promise((resolve, reject) => {
+    const endsAt = new Date(Date.now() + 30000); // 30 seconds from now
+
+    db.run(
+      `INSERT INTO auctions (table_id, property_id, current_bid, excluded_players, ends_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [tableId, propertyId, startingBid, '', endsAt.toISOString()],
+      function(err) {
+        if (err) reject(err);
+        else resolve({ auctionId: this.lastID, endsAt });
+      }
+    );
+  });
+};
+
+const getActiveAuction = (tableId) => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT * FROM auctions WHERE table_id = ? AND status = "active" ORDER BY id DESC LIMIT 1',
+      [tableId],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      }
+    );
+  });
+};
+
+const placeBid = (auctionId, bidderId, bidAmount) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const auction = await new Promise((res, rej) => {
+        db.get('SELECT * FROM auctions WHERE id = ?', [auctionId], (err, row) => {
+          if (err) rej(err);
+          else res(row);
+        });
+      });
+
+      if (!auction) {
+        reject(new Error('Auction not found'));
+        return;
+      }
+
+      if (auction.status !== 'active') {
+        reject(new Error('Auction not active'));
+        return;
+      }
+
+      // Check if player is excluded
+      const excludedPlayers = auction.excluded_players ? auction.excluded_players.split(',') : [];
+      if (excludedPlayers.includes(bidderId)) {
+        reject(new Error('Player excluded from this auction'));
+        return;
+      }
+
+      if (bidAmount <= auction.current_bid) {
+        reject(new Error('Bid must be higher than current bid'));
+        return;
+      }
+
+      // Update auction with new bid and reset timer
+      const newEndsAt = new Date(Date.now() + 30000);
+
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE auctions SET current_bid = ?, current_bidder_id = ?, ends_at = ? WHERE id = ?',
+          [bidAmount, bidderId, newEndsAt.toISOString(), auctionId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      resolve({ newBid: bidAmount, newEndsAt });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const excludePlayerFromAuction = (auctionId, playerId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const auction = await new Promise((res, rej) => {
+        db.get('SELECT * FROM auctions WHERE id = ?', [auctionId], (err, row) => {
+          if (err) rej(err);
+          else res(row);
+        });
+      });
+
+      if (!auction) {
+        reject(new Error('Auction not found'));
+        return;
+      }
+
+      const excludedPlayers = auction.excluded_players ? auction.excluded_players.split(',').filter(p => p) : [];
+      if (!excludedPlayers.includes(playerId)) {
+        excludedPlayers.push(playerId);
+      }
+
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE auctions SET excluded_players = ? WHERE id = ?',
+          [excludedPlayers.join(','), auctionId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      resolve({ excludedPlayers });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const finalizeAuction = (auctionId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const auction = await new Promise((res, rej) => {
+        db.get('SELECT * FROM auctions WHERE id = ?', [auctionId], (err, row) => {
+          if (err) rej(err);
+          else res(row);
+        });
+      });
+
+      if (!auction) {
+        reject(new Error('Auction not found'));
+        return;
+      }
+
+      // Update auction status
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE auctions SET status = "completed" WHERE id = ?',
+          [auctionId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      // If there was a winner, assign property
+      if (auction.current_bidder_id && auction.current_bid > 0) {
+        await updatePropertyOwner(auction.property_id, auction.current_bidder_id);
+      }
+
+      resolve({
+        winnerId: auction.current_bidder_id,
+        finalBid: auction.current_bid,
+        propertyId: auction.property_id
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
 module.exports = {
   db,
   initializeDatabase,
@@ -990,5 +1314,16 @@ module.exports = {
   recordTransaction,
   processBuyIn,
   leaveGameTable,
-  resetGameTable
+  resetGameTable,
+  // Construction & Mortgage functions
+  mortgageProperty,
+  unmortgageProperty,
+  upgradePropertyLevel,
+  downgradePropertyLevel,
+  // Auction functions
+  createAuction,
+  getActiveAuction,
+  placeBid,
+  excludePlayerFromAuction,
+  finalizeAuction
 };

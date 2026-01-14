@@ -673,6 +673,371 @@ async function startGame(tableId) {
   }
 }
 
+// ================================
+// BLITZ TURN ENGINE SYSTEM
+// ================================
+
+// Turn state management per table
+const turnState = new Map(); // tableId -> { currentPlayerId, phase, timer, startTime }
+
+// Turn phases: 'decision' (10s) | 'construction' (5m) | 'auction' (30s)
+
+// Initialize turn for a table
+function initializeTurn(tableId, playerId) {
+  turnState.set(tableId, {
+    currentPlayerId: playerId,
+    phase: 'decision',
+    timer: null,
+    startTime: Date.now(),
+    actionTaken: false
+  });
+
+  // Start 10s decision timer
+  const timer = setTimeout(() => {
+    handleDecisionTimeout(tableId);
+  }, 10000);
+
+  turnState.get(tableId).timer = timer;
+
+  // Broadcast turn start
+  io.emit('turn:start', {
+    tableId,
+    playerId,
+    phase: 'decision',
+    duration: 10000
+  });
+
+  console.log(`⏱️ Turn started for player ${playerId} on table ${tableId}`);
+}
+
+// Handle decision phase timeout (auto dice roll)
+async function handleDecisionTimeout(tableId) {
+  const state = turnState.get(tableId);
+  if (!state || state.actionTaken) return;
+
+  console.log(`⚠️ Decision timeout for table ${tableId} - Auto rolling dice`);
+
+  // Auto roll dice
+  const diceRoll = Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1;
+
+  io.emit('turn:auto-action', {
+    tableId,
+    action: 'dice_roll',
+    value: diceRoll,
+    playerId: state.currentPlayerId
+  });
+
+  // Move to construction phase
+  startConstructionPhase(tableId);
+}
+
+// Start construction phase (5 minutes)
+function startConstructionPhase(tableId) {
+  const state = turnState.get(tableId);
+  if (!state) return;
+
+  // Clear decision timer
+  if (state.timer) {
+    clearTimeout(state.timer);
+  }
+
+  state.phase = 'construction';
+  state.startTime = Date.now();
+
+  // Start 5m construction timer
+  const timer = setTimeout(() => {
+    handleConstructionTimeout(tableId);
+  }, 300000); // 5 minutes
+
+  state.timer = timer;
+
+  io.emit('construction:start', {
+    tableId,
+    playerId: state.currentPlayerId,
+    duration: 300000
+  });
+
+  console.log(`🏗️ Construction phase started for table ${tableId}`);
+}
+
+// Handle construction phase timeout
+function handleConstructionTimeout(tableId) {
+  console.log(`⚠️ Construction timeout for table ${tableId} - Auto ending turn`);
+
+  io.emit('turn:auto-end', {
+    tableId
+  });
+
+  endTurn(tableId);
+}
+
+// End turn and move to next player
+async function endTurn(tableId) {
+  const state = turnState.get(tableId);
+  if (!state) return;
+
+  // Clear any active timer
+  if (state.timer) {
+    clearTimeout(state.timer);
+  }
+
+  // Get next player
+  const players = await db.getTablePlayers(tableId);
+  const currentIndex = players.findIndex(p => p.player_id === state.currentPlayerId);
+  const nextIndex = (currentIndex + 1) % players.length;
+  const nextPlayer = players[nextIndex];
+
+  // Remove turn state
+  turnState.delete(tableId);
+
+  io.emit('turn:end', {
+    tableId,
+    nextPlayerId: nextPlayer.player_id
+  });
+
+  // Initialize next turn
+  setTimeout(() => {
+    initializeTurn(tableId, nextPlayer.player_id);
+  }, 2000);
+}
+
+// ================================
+// TURN ENGINE API ENDPOINTS
+// ================================
+
+// Player takes action (dice roll, trade, etc)
+app.post('/api/turn/action', async (req, res) => {
+  try {
+    const { tableId, playerId, action } = req.body;
+
+    const state = turnState.get(tableId);
+    if (!state) {
+      return res.status(400).json({ error: 'No active turn for this table' });
+    }
+
+    if (state.currentPlayerId !== playerId) {
+      return res.status(400).json({ error: 'Not your turn' });
+    }
+
+    if (state.phase !== 'decision') {
+      return res.status(400).json({ error: 'Decision phase has ended' });
+    }
+
+    state.actionTaken = true;
+
+    // Handle action (dice roll, trade, etc)
+    res.json({ success: true, message: `Action ${action} registered` });
+
+    // Move to construction phase
+    startConstructionPhase(tableId);
+
+  } catch (error) {
+    console.error('Turn action error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// End turn manually
+app.post('/api/turn/end', async (req, res) => {
+  try {
+    const { tableId, playerId } = req.body;
+
+    const state = turnState.get(tableId);
+    if (!state) {
+      return res.status(400).json({ error: 'No active turn' });
+    }
+
+    if (state.currentPlayerId !== playerId) {
+      return res.status(400).json({ error: 'Not your turn' });
+    }
+
+    await endTurn(tableId);
+
+    res.json({ success: true, message: 'Turn ended' });
+
+  } catch (error) {
+    console.error('End turn error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ================================
+// CONSTRUCTION & MORTGAGE ENDPOINTS
+// ================================
+
+// Upgrade property (build house/hotel)
+app.post('/api/property/upgrade', async (req, res) => {
+  try {
+    const { propertyId, playerId } = req.body;
+
+    const property = await db.getProperty(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    if (property.owner_id !== playerId) {
+      return res.status(403).json({ error: 'You do not own this property' });
+    }
+
+    const result = await db.upgradePropertyLevel(propertyId);
+
+    // Deduct cost from player balance (simplified - should use game_balance)
+    // This would be properly implemented with full game state management
+
+    io.emit('property:upgraded', {
+      propertyId,
+      newLevel: result.newLevel,
+      cost: result.upgradeCost
+    });
+
+    res.json({ success: true, ...result });
+
+  } catch (error) {
+    console.error('Upgrade error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mortgage property
+app.post('/api/property/mortgage', async (req, res) => {
+  try {
+    const { propertyId, playerId } = req.body;
+
+    const property = await db.getProperty(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    if (property.owner_id !== playerId) {
+      return res.status(403).json({ error: 'You do not own this property' });
+    }
+
+    const result = await db.mortgageProperty(propertyId);
+
+    io.emit('property:mortgaged', {
+      propertyId,
+      mortgageValue: result.mortgageValue
+    });
+
+    res.json({ success: true, ...result });
+
+  } catch (error) {
+    console.error('Mortgage error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unmortgage property
+app.post('/api/property/unmortgage', async (req, res) => {
+  try {
+    const { propertyId, playerId } = req.body;
+
+    const property = await db.getProperty(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    if (property.owner_id !== playerId) {
+      return res.status(403).json({ error: 'You do not own this property' });
+    }
+
+    const result = await db.unmortgageProperty(propertyId);
+
+    io.emit('property:unmortgaged', {
+      propertyId,
+      cost: result.unmortgageCost
+    });
+
+    res.json({ success: true, ...result });
+
+  } catch (error) {
+    console.error('Unmortgage error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ================================
+// AUCTION SYSTEM ENDPOINTS
+// ================================
+
+// Start auction for unowned property
+app.post('/api/auction/start', async (req, res) => {
+  try {
+    const { tableId, propertyId } = req.body;
+
+    const property = await db.getProperty(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    if (property.owner_id) {
+      return res.status(400).json({ error: 'Property already owned' });
+    }
+
+    const result = await db.createAuction(tableId, propertyId, 1);
+
+    // Start 30s auction timer
+    setTimeout(async () => {
+      await finalizeAuctionAuto(result.auctionId);
+    }, 30000);
+
+    io.emit('auction:start', {
+      tableId,
+      auctionId: result.auctionId,
+      propertyId,
+      property: property.name,
+      duration: 30000
+    });
+
+    res.json({ success: true, ...result });
+
+  } catch (error) {
+    console.error('Start auction error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Place bid
+app.post('/api/auction/bid', async (req, res) => {
+  try {
+    const { auctionId, playerId, bidAmount } = req.body;
+
+    const result = await db.placeBid(auctionId, playerId, bidAmount);
+
+    io.emit('auction:bid', {
+      auctionId,
+      playerId,
+      bidAmount,
+      newEndsAt: result.newEndsAt
+    });
+
+    res.json({ success: true, ...result });
+
+  } catch (error) {
+    console.error('Bid error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Finalize auction automatically
+async function finalizeAuctionAuto(auctionId) {
+  try {
+    const result = await db.finalizeAuction(auctionId);
+
+    io.emit('auction:end', {
+      auctionId,
+      winnerId: result.winnerId,
+      finalBid: result.finalBid,
+      propertyId: result.propertyId
+    });
+
+    console.log(`🔨 Auction ${auctionId} finalized. Winner: ${result.winnerId || 'None'}`);
+
+  } catch (error) {
+    console.error('Finalize auction error:', error);
+  }
+}
+
 // Socket.IO events
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
