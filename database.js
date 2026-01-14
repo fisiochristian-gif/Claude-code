@@ -44,7 +44,7 @@ const initializeDatabase = () => {
         if (err) console.error('Error creating properties table:', err);
       });
 
-      // Game state table - Enhanced for lobby system
+      // Game state table - Enhanced for lobby system and bankruptcy
       db.run(`
         CREATE TABLE IF NOT EXISTS game_state (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,6 +56,9 @@ const initializeDatabase = () => {
           jail_turns INTEGER DEFAULT 0,
           is_bot BOOLEAN DEFAULT 0,
           buy_in_paid BOOLEAN DEFAULT 0,
+          is_bankrupt BOOLEAN DEFAULT 0,
+          debt_amount INTEGER DEFAULT 0,
+          bankruptcy_timer_started DATETIME,
           joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (player_id) REFERENCES users(id_univoco)
         )
@@ -254,6 +257,52 @@ const initializeDatabase = () => {
         if (err) {
           console.error('Error creating cards table:', err);
           reject(err);
+        }
+      });
+
+      // Match history table for game results
+      db.run(`
+        CREATE TABLE IF NOT EXISTS match_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          table_id INTEGER NOT NULL,
+          player_id TEXT NOT NULL,
+          username TEXT NOT NULL,
+          is_bot BOOLEAN DEFAULT 0,
+          final_rank INTEGER NOT NULL,
+          total_wealth INTEGER NOT NULL,
+          cash_balance INTEGER NOT NULL,
+          property_value INTEGER NOT NULL,
+          building_value INTEGER NOT NULL,
+          match_points INTEGER NOT NULL,
+          credits_won INTEGER DEFAULT 0,
+          credits_burned BOOLEAN DEFAULT 0,
+          game_ended_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (player_id) REFERENCES users(id_univoco)
+        )
+      `, (err) => {
+        if (err) console.error('Error creating match_history table:', err);
+      });
+
+      // Monthly leaderboard for match points
+      db.run(`
+        CREATE TABLE IF NOT EXISTS monthly_leaderboard (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          player_id TEXT NOT NULL,
+          username TEXT NOT NULL,
+          total_match_points INTEGER DEFAULT 0,
+          games_played INTEGER DEFAULT 0,
+          first_place INTEGER DEFAULT 0,
+          second_place INTEGER DEFAULT 0,
+          third_place INTEGER DEFAULT 0,
+          month_year TEXT NOT NULL,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(player_id, month_year),
+          FOREIGN KEY (player_id) REFERENCES users(id_univoco)
+        )
+      `, (err) => {
+        if (err) {
+          console.error('Error creating monthly_leaderboard table:', err);
+          reject(err);
         } else {
           // Initialize 2 game tables
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (1, 'waiting')`, (err) => {
@@ -261,7 +310,7 @@ const initializeDatabase = () => {
           });
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (2, 'waiting')`, (err) => {
             if (err) console.error('Error initializing table 2:', err);
-            console.log('Database initialized successfully with Card System');
+            console.log('Database initialized successfully with End-Game System');
             resolve();
           });
         }
@@ -1647,6 +1696,406 @@ const getCard = (cardId) => {
   });
 };
 
+// ================================
+// END-GAME & BANKRUPTCY FUNCTIONS
+// ================================
+
+// Calculate total wealth for a player (Cash + Property Value + Building Value)
+const calculatePlayerWealth = async (playerId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Get player's cash balance
+      const playerState = await getPlayerState(playerId);
+      if (!playerState) {
+        reject(new Error('Player not found'));
+        return;
+      }
+
+      const cashBalance = playerState.game_balance;
+
+      // Get all properties owned by player
+      const properties = await new Promise((res, rej) => {
+        db.all(
+          'SELECT * FROM properties WHERE owner_id = ?',
+          [playerId],
+          (err, rows) => err ? rej(err) : res(rows)
+        );
+      });
+
+      // Calculate property value and building value
+      let propertyValue = 0;
+      let buildingValue = 0;
+
+      for (const prop of properties) {
+        // Base property value (50% if mortgaged)
+        if (prop.is_mortgaged) {
+          propertyValue += Math.floor(prop.price * 0.5);
+        } else {
+          propertyValue += prop.price;
+        }
+
+        // Building value (houses/hotel)
+        if (prop.level > 0) {
+          buildingValue += prop.level * prop.house_price;
+        }
+      }
+
+      const totalWealth = cashBalance + propertyValue + buildingValue;
+
+      resolve({
+        playerId,
+        cashBalance,
+        propertyValue,
+        buildingValue,
+        totalWealth,
+        propertyCount: properties.length
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Set player debt and start bankruptcy timer
+const setPlayerDebt = (playerId, debtAmount) => {
+  return new Promise((resolve, reject) => {
+    const timerStarted = new Date().toISOString();
+
+    db.run(
+      'UPDATE game_state SET debt_amount = ?, bankruptcy_timer_started = ? WHERE player_id = ?',
+      [debtAmount, timerStarted, playerId],
+      (err) => {
+        if (err) reject(err);
+        else resolve({ playerId, debtAmount, timerStarted });
+      }
+    );
+  });
+};
+
+// Clear player debt
+const clearPlayerDebt = (playerId) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE game_state SET debt_amount = 0, bankruptcy_timer_started = NULL WHERE player_id = ?',
+      [playerId],
+      (err) => {
+        if (err) reject(err);
+        else resolve({ playerId });
+      }
+    );
+  });
+};
+
+// Declare bankruptcy - mark player as bankrupt and liquidate assets
+const declareBankruptcy = async (playerId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Mark player as bankrupt
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE game_state SET is_bankrupt = 1, debt_amount = 0, bankruptcy_timer_started = NULL WHERE player_id = ?',
+          [playerId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      // Release all properties (set owner to NULL, clear buildings, clear mortgage)
+      await new Promise((res, rej) => {
+        db.run(
+          'UPDATE properties SET owner_id = NULL, level = 0, is_mortgaged = 0, mortgage_value = NULL WHERE owner_id = ?',
+          [playerId],
+          (err) => err ? rej(err) : res()
+        );
+      });
+
+      console.log(`💥 Player ${playerId} declared BANKRUPTCY`);
+
+      resolve({ playerId, bankrupt: true });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Calculate final ranking for all players at a table
+const calculateFinalRanking = async (tableId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Get all players at the table
+      const players = await new Promise((res, rej) => {
+        db.all(
+          `SELECT gs.*, u.username
+           FROM game_state gs
+           LEFT JOIN users u ON gs.player_id = u.id_univoco
+           WHERE gs.table_id = ?
+           ORDER BY gs.is_bankrupt ASC`,
+          [tableId],
+          (err, rows) => err ? rej(err) : res(rows)
+        );
+      });
+
+      // Calculate wealth for each player
+      const rankings = [];
+      for (const player of players) {
+        const wealth = await calculatePlayerWealth(player.player_id);
+        rankings.push({
+          playerId: player.player_id,
+          username: player.username,
+          isBot: player.is_bot === 1,
+          isBankrupt: player.is_bankrupt === 1,
+          ...wealth
+        });
+      }
+
+      // Sort by total wealth (DESC) - bankrupt players go last
+      rankings.sort((a, b) => {
+        if (a.isBankrupt && !b.isBankrupt) return 1;
+        if (!a.isBankrupt && b.isBankrupt) return -1;
+        return b.totalWealth - a.totalWealth;
+      });
+
+      // Assign ranks and match points
+      const matchPoints = [5, 4, 3, 2, 1]; // 1st to 5th
+      rankings.forEach((player, index) => {
+        player.rank = index + 1;
+        player.matchPoints = matchPoints[index] || 0;
+      });
+
+      resolve(rankings);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Distribute prize pool or burn credits
+const distributePrizePool = async (rankings, tableId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const prizeDistribution = [120, 60, 40, 20, 10]; // 1st to 5th
+      const results = [];
+      let totalBurned = 0;
+
+      for (let i = 0; i < rankings.length && i < 5; i++) {
+        const player = rankings[i];
+        const creditsWon = prizeDistribution[i];
+
+        if (player.isBot) {
+          // BOT WINNER: BURN the credits
+          totalBurned += creditsWon;
+          results.push({
+            playerId: player.playerId,
+            username: player.username,
+            rank: player.rank,
+            creditsWon,
+            burned: true,
+            isBot: true
+          });
+        } else {
+          // HUMAN WINNER: Add to crediti balance (staking balance)
+          await new Promise((res, rej) => {
+            db.run(
+              'UPDATE users SET crediti = crediti + ? WHERE id_univoco = ?',
+              [creditsWon, player.playerId],
+              (err) => err ? rej(err) : res()
+            );
+          });
+
+          results.push({
+            playerId: player.playerId,
+            username: player.username,
+            rank: player.rank,
+            creditsWon,
+            burned: false,
+            isBot: false
+          });
+        }
+      }
+
+      // Permanently burn the credits from ecosystem if any
+      if (totalBurned > 0) {
+        await burnCredits(totalBurned, `LUNOPOLY Match ${tableId} - Bot winnings`);
+      }
+
+      resolve({ results, totalBurned });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Permanently burn credits from the ecosystem
+const burnCredits = (amount, reason) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE global_stats SET total_burned_from_yield = total_burned_from_yield + ? WHERE id = 1',
+      [amount],
+      (err) => {
+        if (err) reject(err);
+        else {
+          console.log(`🔥 BURNED ${amount} Credits: ${reason}`);
+          resolve({ burned: amount, reason });
+        }
+      }
+    );
+  });
+};
+
+// Record match result to history
+const recordMatchResult = (rankings, tableId, creditsBurned = 0) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      for (const player of rankings) {
+        await new Promise((res, rej) => {
+          db.run(
+            `INSERT INTO match_history
+            (table_id, player_id, username, is_bot, final_rank, total_wealth,
+             cash_balance, property_value, building_value, match_points,
+             credits_won, credits_burned)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              tableId,
+              player.playerId,
+              player.username,
+              player.isBot ? 1 : 0,
+              player.rank,
+              player.totalWealth,
+              player.cashBalance,
+              player.propertyValue,
+              player.buildingValue,
+              player.matchPoints,
+              player.creditsWon || 0,
+              player.burned ? 1 : 0
+            ],
+            (err) => err ? rej(err) : res()
+          );
+        });
+      }
+
+      console.log(`📊 Match results recorded for table ${tableId}`);
+      resolve({ tableId, playersRecorded: rankings.length });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Update monthly leaderboard (ONLY for human players)
+const updateMonthlyLeaderboard = (rankings) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+      for (const player of rankings) {
+        // SKIP BOTS - only record human players
+        if (player.isBot) continue;
+
+        const matchPoints = player.matchPoints;
+        const rank = player.rank;
+
+        // Check if entry exists
+        const existing = await new Promise((res, rej) => {
+          db.get(
+            'SELECT * FROM monthly_leaderboard WHERE player_id = ? AND month_year = ?',
+            [player.playerId, monthYear],
+            (err, row) => err ? rej(err) : res(row)
+          );
+        });
+
+        if (existing) {
+          // Update existing entry
+          const updates = {
+            first: rank === 1 ? 1 : 0,
+            second: rank === 2 ? 1 : 0,
+            third: rank === 3 ? 1 : 0
+          };
+
+          await new Promise((res, rej) => {
+            db.run(
+              `UPDATE monthly_leaderboard
+               SET total_match_points = total_match_points + ?,
+                   games_played = games_played + 1,
+                   first_place = first_place + ?,
+                   second_place = second_place + ?,
+                   third_place = third_place + ?,
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE player_id = ? AND month_year = ?`,
+              [matchPoints, updates.first, updates.second, updates.third, player.playerId, monthYear],
+              (err) => err ? rej(err) : res()
+            );
+          });
+        } else {
+          // Create new entry
+          await new Promise((res, rej) => {
+            db.run(
+              `INSERT INTO monthly_leaderboard
+              (player_id, username, total_match_points, games_played,
+               first_place, second_place, third_place, month_year)
+              VALUES (?, ?, ?, 1, ?, ?, ?, ?)`,
+              [
+                player.playerId,
+                player.username,
+                matchPoints,
+                rank === 1 ? 1 : 0,
+                rank === 2 ? 1 : 0,
+                rank === 3 ? 1 : 0,
+                monthYear
+              ],
+              (err) => err ? rej(err) : res()
+            );
+          });
+        }
+      }
+
+      console.log(`🏆 Monthly leaderboard updated for ${monthYear}`);
+      resolve({ monthYear, updated: true });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Get monthly leaderboard
+const getMonthlyLeaderboard = (limit = 10, monthYear = null) => {
+  return new Promise((resolve, reject) => {
+    const month = monthYear || new Date().toISOString().slice(0, 7);
+
+    db.all(
+      `SELECT * FROM monthly_leaderboard
+       WHERE month_year = ?
+       ORDER BY total_match_points DESC, games_played ASC
+       LIMIT ?`,
+      [month, limit],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      }
+    );
+  });
+};
+
+// Check if only bots remain in a game
+const checkOnlyBotsRemaining = (tableId) => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT
+        COUNT(*) as total_players,
+        SUM(CASE WHEN is_bot = 0 AND is_bankrupt = 0 THEN 1 ELSE 0 END) as active_humans
+       FROM game_state
+       WHERE table_id = ?`,
+      [tableId],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve({
+          totalPlayers: row.total_players,
+          activeHumans: row.active_humans,
+          onlyBotsRemaining: row.active_humans === 0 && row.total_players > 0
+        });
+      }
+    );
+  });
+};
+
 module.exports = {
   db,
   initializeDatabase,
@@ -1712,5 +2161,17 @@ module.exports = {
   initializeCards,
   getCards,
   drawCard,
-  getCard
+  getCard,
+  // End-game & Bankruptcy functions
+  calculatePlayerWealth,
+  setPlayerDebt,
+  clearPlayerDebt,
+  declareBankruptcy,
+  calculateFinalRanking,
+  distributePrizePool,
+  burnCredits,
+  recordMatchResult,
+  updateMonthlyLeaderboard,
+  getMonthlyLeaderboard,
+  checkOnlyBotsRemaining
 };

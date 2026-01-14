@@ -1503,6 +1503,276 @@ app.get('/api/cards', async (req, res) => {
   }
 });
 
+// ================================
+// END-GAME & BANKRUPTCY ENDPOINTS
+// ================================
+
+// Debt liquidation timers per player
+const debtTimers = new Map(); // playerId -> timer
+
+// Set player debt and start 60s liquidation timer
+app.post('/api/game/debt', async (req, res) => {
+  try {
+    const { playerId, debtAmount, tableId } = req.body;
+
+    // Set debt in database
+    await db.setPlayerDebt(playerId, debtAmount);
+
+    // Clear any existing timer
+    if (debtTimers.has(playerId)) {
+      clearTimeout(debtTimers.get(playerId));
+    }
+
+    // Start 60s liquidation timer
+    const timer = setTimeout(async () => {
+      await handleDebtTimeout(playerId, tableId);
+    }, 60000); // 60 seconds
+
+    debtTimers.set(playerId, timer);
+
+    // Broadcast debt warning to table
+    io.to(`table_${tableId}`).emit('debt:warning', {
+      playerId,
+      debtAmount,
+      timeLimit: 60000
+    });
+
+    res.json({ success: true, playerId, debtAmount, timeLimit: 60000 });
+
+  } catch (error) {
+    console.error('Set debt error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Handle debt timeout - check if bankruptcy needed
+async function handleDebtTimeout(playerId, tableId) {
+  try {
+    console.log(`⏰ Debt timeout for player ${playerId}`);
+
+    // Calculate total assets
+    const wealth = await db.calculatePlayerWealth(playerId);
+    const playerState = await db.getPlayerState(playerId);
+
+    // Check if Total Assets < Debt
+    if (wealth.totalWealth < playerState.debt_amount) {
+      // AUTOMATIC BANKRUPTCY
+      console.log(`💥 AUTOMATIC BANKRUPTCY triggered for ${playerId}`);
+      await db.declareBankruptcy(playerId);
+
+      io.to(`table_${tableId}`).emit('player:bankrupt', {
+        playerId,
+        reason: 'debt_timeout',
+        automatic: true
+      });
+
+      // Check if only bots remain
+      await checkGameEnd(tableId);
+    } else {
+      // Player has enough assets but didn't liquidate - force liquidation
+      console.log(`⚠️ Player ${playerId} has assets but failed to settle debt`);
+
+      io.to(`table_${tableId}`).emit('debt:force-liquidation', {
+        playerId,
+        totalAssets: wealth.totalWealth,
+        debt: playerState.debt_amount
+      });
+    }
+
+    debtTimers.delete(playerId);
+  } catch (error) {
+    console.error('Handle debt timeout error:', error);
+  }
+}
+
+// Clear player debt
+app.post('/api/game/clear-debt', async (req, res) => {
+  try {
+    const { playerId } = req.body;
+
+    // Clear debt timer
+    if (debtTimers.has(playerId)) {
+      clearTimeout(debtTimers.get(playerId));
+      debtTimers.delete(playerId);
+    }
+
+    // Clear debt in database
+    await db.clearPlayerDebt(playerId);
+
+    res.json({ success: true, playerId });
+
+  } catch (error) {
+    console.error('Clear debt error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual bankruptcy declaration
+app.post('/api/game/bankruptcy', async (req, res) => {
+  try {
+    const { playerId, tableId } = req.body;
+
+    // Clear any debt timer
+    if (debtTimers.has(playerId)) {
+      clearTimeout(debtTimers.get(playerId));
+      debtTimers.delete(playerId);
+    }
+
+    // Declare bankruptcy
+    await db.declareBankruptcy(playerId);
+
+    io.to(`table_${tableId}`).emit('player:bankrupt', {
+      playerId,
+      reason: 'manual',
+      automatic: false
+    });
+
+    // Check if only bots remain or game should end
+    await checkGameEnd(tableId);
+
+    res.json({ success: true, playerId, bankrupt: true });
+
+  } catch (error) {
+    console.error('Bankruptcy error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Check if game should end (only bots remaining)
+async function checkGameEnd(tableId) {
+  try {
+    const status = await db.checkOnlyBotsRemaining(tableId);
+
+    if (status.onlyBotsRemaining) {
+      console.log(`🚨 ALL HUMANS GONE at table ${tableId} - AUTO-CLOSING GAME`);
+
+      // End game immediately with bot-only ranking
+      await endGame(tableId, true); // true = bots only (burn all credits)
+    }
+  } catch (error) {
+    console.error('Check game end error:', error);
+  }
+}
+
+// End game and finalize results
+app.post('/api/game/end', async (req, res) => {
+  try {
+    const { tableId } = req.body;
+
+    const result = await endGame(tableId, false);
+
+    res.json({ success: true, ...result });
+
+  } catch (error) {
+    console.error('End game error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// End game logic
+async function endGame(tableId, botsOnly = false) {
+  try {
+    console.log(`🏁 ENDING GAME for table ${tableId} (bots only: ${botsOnly})`);
+
+    // Calculate final rankings
+    const rankings = await db.calculateFinalRanking(tableId);
+
+    console.log('Final Rankings:', rankings);
+
+    let prizeResult;
+    let totalBurned = 0;
+
+    if (botsOnly) {
+      // BURN ALL 250 CREDITS - no prize distribution
+      totalBurned = 250;
+      await db.burnCredits(250, `Table ${tableId} - Game closed (only bots remaining)`);
+
+      prizeResult = {
+        results: rankings.map(r => ({ ...r, creditsWon: 0, burned: true })),
+        totalBurned: 250
+      };
+    } else {
+      // Normal prize distribution (bots get burned, humans get credits)
+      prizeResult = await db.distributePrizePool(rankings, tableId);
+      totalBurned = prizeResult.totalBurned;
+
+      // Add creditsWon to rankings
+      rankings.forEach((player, index) => {
+        const result = prizeResult.results.find(r => r.playerId === player.playerId);
+        if (result) {
+          player.creditsWon = result.creditsWon;
+          player.burned = result.burned;
+        }
+      });
+    }
+
+    // Record match history
+    await db.recordMatchResult(rankings, tableId, totalBurned);
+
+    // Update monthly leaderboard (ONLY humans)
+    await db.updateMonthlyLeaderboard(rankings);
+
+    // Update table status to 'completed'
+    await db.updateGameTableStatus(tableId, 'completed', {
+      gameEndedAt: new Date().toISOString()
+    });
+
+    // Broadcast final results to all players
+    io.to(`table_${tableId}`).emit('game:ended', {
+      tableId,
+      rankings,
+      totalBurned,
+      botsOnly,
+      prizeDistribution: prizeResult.results
+    });
+
+    console.log(`✅ Game ended for table ${tableId}. ${totalBurned} credits burned.`);
+
+    return {
+      tableId,
+      rankings,
+      totalBurned,
+      botsOnly
+    };
+  } catch (error) {
+    console.error('End game error:', error);
+    throw error;
+  }
+}
+
+// Get player wealth
+app.get('/api/game/wealth/:playerId', async (req, res) => {
+  try {
+    const { playerId } = req.params;
+
+    const wealth = await db.calculatePlayerWealth(playerId);
+
+    res.json(wealth);
+
+  } catch (error) {
+    console.error('Get wealth error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get monthly leaderboard
+app.get('/api/leaderboard/monthly', async (req, res) => {
+  try {
+    const { limit, month } = req.query;
+
+    const leaderboard = await db.getMonthlyLeaderboard(
+      parseInt(limit) || 10,
+      month || null
+    );
+
+    res.json(leaderboard);
+
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Socket.IO events
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
