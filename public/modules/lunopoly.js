@@ -29,6 +29,11 @@ async function initializeLunopoly() {
         renderBoard();
         setupGameEvents();
         startTurnTimer();
+
+        // Initialize neon enhancements if available
+        if (window.lunoplyNeon) {
+            window.lunoplyNeon.initializeNeonEnhancements();
+        }
     } catch (error) {
         console.error('LUNOPOLY initialization error:', error);
     }
@@ -293,7 +298,12 @@ async function drawCard(cardType) {
         const result = await response.json();
 
         if (result.success) {
-            showCardWithFlipAnimation(result.card);
+            // Use neon animation if available, otherwise use default
+            if (window.lunoplyNeon && window.lunoplyNeon.drawCardWithAnimation) {
+                window.lunoplyNeon.drawCardWithAnimation(result.card);
+            } else {
+                showCardWithFlipAnimation(result.card);
+            }
         } else {
             alert('Errore durante il pescaggio della carta');
         }
