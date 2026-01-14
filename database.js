@@ -303,6 +303,72 @@ const initializeDatabase = () => {
         if (err) {
           console.error('Error creating monthly_leaderboard table:', err);
           reject(err);
+        }
+      });
+
+      // Minting settings table for APR configuration
+      db.run(`
+        CREATE TABLE IF NOT EXISTS minting_settings (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          apr_multiplier REAL DEFAULT 0.8,
+          sustainability_vault_allocation REAL DEFAULT 0.2,
+          last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+          notes TEXT
+        )
+      `, (err) => {
+        if (err) console.error('Error creating minting_settings table:', err);
+      });
+
+      // Initialize minting settings
+      db.run(`
+        INSERT OR IGNORE INTO minting_settings (id, apr_multiplier, sustainability_vault_allocation, notes)
+        VALUES (1, 0.8, 0.2, '80% APR for minting, 20% to sustainability vault')
+      `, (err) => {
+        if (err) console.error('Error initializing minting_settings:', err);
+      });
+
+      // Social follow tracking for persistence logic
+      db.run(`
+        CREATE TABLE IF NOT EXISTS social_follow_tracking (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL,
+          platform TEXT NOT NULL,
+          follow_type TEXT NOT NULL,
+          first_follow_date DATETIME NOT NULL,
+          first_follow_month TEXT NOT NULL,
+          current_month TEXT NOT NULL,
+          is_active BOOLEAN DEFAULT 1,
+          reward_tier TEXT DEFAULT 'initial',
+          last_claimed_month TEXT,
+          last_checked DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, platform, follow_type),
+          FOREIGN KEY (user_id) REFERENCES users(id_univoco)
+        )
+      `, (err) => {
+        if (err) console.error('Error creating social_follow_tracking table:', err);
+      });
+
+      // Upvote tracking for dynamic retraction
+      db.run(`
+        CREATE TABLE IF NOT EXISTS upvote_tracking (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL,
+          content_id TEXT NOT NULL,
+          content_type TEXT NOT NULL,
+          vote_type TEXT NOT NULL,
+          points_granted INTEGER DEFAULT 0,
+          credits_granted INTEGER DEFAULT 0,
+          is_active BOOLEAN DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, content_id, content_type),
+          FOREIGN KEY (user_id) REFERENCES users(id_univoco)
+        )
+      `, (err) => {
+        if (err) {
+          console.error('Error creating upvote_tracking table:', err);
+          reject(err);
         } else {
           // Initialize 2 game tables
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (1, 'waiting')`, (err) => {
@@ -310,7 +376,7 @@ const initializeDatabase = () => {
           });
           db.run(`INSERT OR IGNORE INTO game_tables (table_id, status) VALUES (2, 'waiting')`, (err) => {
             if (err) console.error('Error initializing table 2:', err);
-            console.log('Database initialized successfully with End-Game System');
+            console.log('Database initialized successfully with Minting & Social Persistence System');
             resolve();
           });
         }
@@ -584,50 +650,72 @@ const updateAPRFund = (aprAmount) => {
 
 // Distribute APR according to the economic model
 const distributeAPR = (totalAPR, notes = '') => {
-  return new Promise((resolve, reject) => {
-    // Distribution percentages
-    const fondoPremi = totalAPR * 0.50;  // 50% to Prize Fund
-    const burnAmount = totalAPR * 0.20;  // 20% to Strategic Burn
-    const sviluppo = totalAPR * 0.15;    // 15% to Development
-    const creator = totalAPR * 0.15;     // 15% to Creator
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Get minting settings (80% multiplier)
+      const settings = await new Promise((res, rej) => {
+        db.get('SELECT * FROM minting_settings WHERE id = 1', (err, row) => {
+          if (err) rej(err);
+          else res(row || { apr_multiplier: 0.8, sustainability_vault_allocation: 0.2 });
+        });
+      });
 
-    db.serialize(() => {
-      // Update global stats with distribution
-      db.run(
-        `UPDATE global_stats SET
-          fondo_premi = fondo_premi + ?,
-          total_burned_from_yield = total_burned_from_yield + ?,
-          sviluppo_fund = sviluppo_fund + ?,
-          creator_fund = creator_fund + ?,
-          current_apr_fund = current_apr_fund - ?,
-          last_apr_distribution = CURRENT_TIMESTAMP,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = 1`,
-        [fondoPremi, burnAmount, sviluppo, creator, totalAPR],
-        (err) => {
-          if (err) return reject(err);
-        }
-      );
+      const aprMultiplier = settings.apr_multiplier; // 0.8 (80%)
+      const sustainabilityAllocation = settings.sustainability_vault_allocation; // 0.2 (20%)
 
-      // Record distribution
-      db.run(
-        `INSERT INTO apr_distributions
-          (total_apr_collected, fondo_premi_amount, burn_amount, sviluppo_amount, creator_amount, notes)
-        VALUES (?, ?, ?, ?, ?, ?)`,
-        [totalAPR, fondoPremi, burnAmount, sviluppo, creator, notes],
-        function(err) {
-          if (err) reject(err);
-          else resolve({
-            distributionId: this.lastID,
-            totalAPR,
-            fondoPremi,
-            burnAmount,
-            sviluppo,
-            creator
-          });
-        }
-      );
-    });
+      // Apply 80% multiplier to total APR for minting
+      const mintableAPR = totalAPR * aprMultiplier;
+      const sustainabilityVault = totalAPR * sustainabilityAllocation;
+
+      // Distribution percentages (on mintable APR only)
+      const fondoPremi = mintableAPR * 0.50;  // 50% to Prize Fund
+      const burnAmount = mintableAPR * 0.20;  // 20% to Strategic Burn
+      const sviluppo = mintableAPR * 0.15;    // 15% to Development
+      const creator = mintableAPR * 0.15;     // 15% to Creator
+
+      db.serialize(() => {
+        // Update global stats with distribution
+        db.run(
+          `UPDATE global_stats SET
+            fondo_premi = fondo_premi + ?,
+            total_burned_from_yield = total_burned_from_yield + ?,
+            sviluppo_fund = sviluppo_fund + ?,
+            creator_fund = creator_fund + ?,
+            current_apr_fund = current_apr_fund - ?,
+            last_apr_distribution = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = 1`,
+          [fondoPremi, burnAmount, sviluppo, creator, totalAPR],
+          (err) => {
+            if (err) return reject(err);
+          }
+        );
+
+        // Record distribution
+        db.run(
+          `INSERT INTO apr_distributions
+            (total_apr_collected, fondo_premi_amount, burn_amount, sviluppo_amount, creator_amount, notes)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+          [mintableAPR, fondoPremi, burnAmount, sviluppo, creator, `${notes} | Sustainability Vault: ${sustainabilityVault.toFixed(2)} (${(sustainabilityAllocation * 100).toFixed(0)}%)`],
+          function(err) {
+            if (err) reject(err);
+            else resolve({
+              distributionId: this.lastID,
+              totalAPR,
+              mintableAPR,
+              sustainabilityVault,
+              aprMultiplier: `${(aprMultiplier * 100).toFixed(0)}%`,
+              fondoPremi,
+              burnAmount,
+              sviluppo,
+              creator
+            });
+          }
+        );
+      });
+    } catch (error) {
+      reject(error);
+    }
   });
 };
 
@@ -714,26 +802,102 @@ const recordSocialAction = (userId, actionType, linkVerified = null) => {
         return reject(new Error('Azione non valida'));
       }
 
-      // Check if action is "once" and already performed
-      if (reward.once) {
-        const alreadyPerformed = await hasPerformedAction(userId, actionType);
-        if (alreadyPerformed) {
-          return reject(new Error('Azione già completata (disponibile una sola volta)'));
+      // Define follow-type actions for persistence tracking
+      const followActions = ['follow_blog', 'x_follow', 'reddit_join', 'telegram_follow'];
+      const isFollowAction = followActions.includes(actionType);
+
+      let finalPoints = reward.points;
+      let finalCredits = reward.credits;
+      let rewardTier = 'standard';
+
+      // Handle follow persistence logic
+      if (isFollowAction) {
+        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+
+        // Check existing follow tracking
+        const followRecord = await new Promise((res, rej) => {
+          db.get(
+            'SELECT * FROM social_follow_tracking WHERE user_id = ? AND follow_type = ?',
+            [userId, actionType],
+            (err, row) => {
+              if (err) rej(err);
+              else res(row);
+            }
+          );
+        });
+
+        if (followRecord) {
+          // Existing follower - check if already claimed this month
+          if (followRecord.last_claimed_month === currentMonth) {
+            return reject(new Error('Follow ricompensa già richiesta questo mese'));
+          }
+
+          // Loyalty tier - 50% reward
+          finalPoints = Math.floor(reward.points * 0.5);
+          finalCredits = Math.floor(reward.credits * 0.5);
+          rewardTier = 'loyalty';
+
+          // Update follow tracking
+          await new Promise((res, rej) => {
+            db.run(
+              'UPDATE social_follow_tracking SET current_month = ?, last_claimed_month = ?, reward_tier = ?, last_checked = CURRENT_TIMESTAMP WHERE id = ?',
+              [currentMonth, currentMonth, 'loyalty', followRecord.id],
+              (err) => {
+                if (err) rej(err);
+                else res();
+              }
+            );
+          });
+
+        } else {
+          // First-time follower - 100% reward
+          finalPoints = reward.points;
+          finalCredits = reward.credits;
+          rewardTier = 'initial';
+
+          // Extract platform from action type
+          const platformMap = {
+            'follow_blog': 'blog',
+            'x_follow': 'twitter',
+            'reddit_join': 'reddit',
+            'telegram_follow': 'telegram'
+          };
+          const platform = platformMap[actionType] || 'unknown';
+
+          // Insert new follow tracking record
+          await new Promise((res, rej) => {
+            db.run(
+              'INSERT INTO social_follow_tracking (user_id, platform, follow_type, first_follow_date, first_follow_month, current_month, is_active, reward_tier, last_claimed_month) VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, 1, ?, ?)',
+              [userId, platform, actionType, currentMonth, currentMonth, 'initial', currentMonth],
+              (err) => {
+                if (err) rej(err);
+                else res();
+              }
+            );
+          });
+        }
+      } else {
+        // Non-follow actions - check "once" restriction as before
+        if (reward.once) {
+          const alreadyPerformed = await hasPerformedAction(userId, actionType);
+          if (alreadyPerformed) {
+            return reject(new Error('Azione già completata (disponibile una sola volta)'));
+          }
         }
       }
 
       // Check credits
       const user = await getUser(userId);
-      if (user.crediti < reward.credits) {
-        return reject(new Error(`Crediti insufficienti (richiesti: ${reward.credits})`));
+      if (user.crediti < finalCredits) {
+        return reject(new Error(`Crediti insufficienti (richiesti: ${finalCredits})`));
       }
 
       db.serialize(() => {
         // Deduct credits if required
-        if (reward.credits > 0) {
+        if (finalCredits > 0) {
           db.run(
             'UPDATE users SET crediti = crediti - ? WHERE id_univoco = ?',
-            [reward.credits, userId],
+            [finalCredits, userId],
             (err) => {
               if (err) return reject(err);
             }
@@ -743,7 +907,7 @@ const recordSocialAction = (userId, actionType, linkVerified = null) => {
         // Award points
         db.run(
           'UPDATE users SET punti_classifica = punti_classifica + ? WHERE id_univoco = ?',
-          [reward.points, userId],
+          [finalPoints, userId],
           (err) => {
             if (err) return reject(err);
           }
@@ -752,15 +916,17 @@ const recordSocialAction = (userId, actionType, linkVerified = null) => {
         // Record action
         db.run(
           'INSERT INTO social_actions (user_id, action_type, link_verified, points_earned, credits_cost) VALUES (?, ?, ?, ?, ?)',
-          [userId, actionType, linkVerified, reward.points, reward.credits],
+          [userId, actionType, linkVerified, finalPoints, finalCredits],
           function(err) {
             if (err) reject(err);
             else resolve({
               actionId: this.lastID,
-              pointsEarned: reward.points,
-              creditsSpent: reward.credits,
-              newCredits: user.crediti - reward.credits,
-              newPoints: user.punti_classifica + reward.points
+              pointsEarned: finalPoints,
+              creditsSpent: finalCredits,
+              newCredits: user.crediti - finalCredits,
+              newPoints: user.punti_classifica + finalPoints,
+              rewardTier: rewardTier,
+              tierMessage: rewardTier === 'loyalty' ? 'Ricompensa fedeltà (50%)' : rewardTier === 'initial' ? 'Prima volta (100%)' : 'Standard'
             });
           }
         );
@@ -776,6 +942,179 @@ const getUserSocialActions = (userId, limit = 20) => {
   return new Promise((resolve, reject) => {
     db.all(
       'SELECT * FROM social_actions WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?',
+      [userId, limit],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      }
+    );
+  });
+};
+
+// ================================
+// UPVOTE TRACKING SYSTEM
+// ================================
+
+// Record upvote and grant points/credits
+const recordUpvote = (userId, contentId, contentType, pointsToGrant, creditsToGrant = 0) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Check if user already upvoted this content
+      const existingVote = await new Promise((res, rej) => {
+        db.get(
+          'SELECT * FROM upvote_tracking WHERE user_id = ? AND content_id = ? AND content_type = ?',
+          [userId, contentId, contentType],
+          (err, row) => {
+            if (err) rej(err);
+            else res(row);
+          }
+        );
+      });
+
+      if (existingVote && existingVote.is_active) {
+        return reject(new Error('Hai già votato questo contenuto'));
+      }
+
+      // Get user for balance check
+      const user = await getUser(userId);
+
+      db.serialize(() => {
+        // Grant points
+        db.run(
+          'UPDATE users SET punti_classifica = punti_classifica + ? WHERE id_univoco = ?',
+          [pointsToGrant, userId],
+          (err) => {
+            if (err) return reject(err);
+          }
+        );
+
+        // Grant credits if applicable
+        if (creditsToGrant > 0) {
+          db.run(
+            'UPDATE users SET crediti = crediti + ? WHERE id_univoco = ?',
+            [creditsToGrant, userId],
+            (err) => {
+              if (err) return reject(err);
+            }
+          );
+        }
+
+        // Insert or reactivate upvote tracking record
+        if (existingVote) {
+          // Reactivate previous upvote
+          db.run(
+            'UPDATE upvote_tracking SET vote_type = ?, points_granted = ?, credits_granted = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['upvote', pointsToGrant, creditsToGrant, existingVote.id],
+            function(err) {
+              if (err) reject(err);
+              else resolve({
+                upvoteId: existingVote.id,
+                pointsGranted: pointsToGrant,
+                creditsGranted: creditsToGrant,
+                newPoints: user.punti_classifica + pointsToGrant,
+                newCredits: user.crediti + creditsToGrant
+              });
+            }
+          );
+        } else {
+          // Insert new upvote record
+          db.run(
+            'INSERT INTO upvote_tracking (user_id, content_id, content_type, vote_type, points_granted, credits_granted, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)',
+            [userId, contentId, contentType, 'upvote', pointsToGrant, creditsToGrant],
+            function(err) {
+              if (err) reject(err);
+              else resolve({
+                upvoteId: this.lastID,
+                pointsGranted: pointsToGrant,
+                creditsGranted: creditsToGrant,
+                newPoints: user.punti_classifica + pointsToGrant,
+                newCredits: user.crediti + creditsToGrant
+              });
+            }
+          );
+        }
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Retract upvote and deduct previously granted points/credits
+const retractUpvote = (userId, contentId, contentType) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Find active upvote record
+      const upvoteRecord = await new Promise((res, rej) => {
+        db.get(
+          'SELECT * FROM upvote_tracking WHERE user_id = ? AND content_id = ? AND content_type = ? AND is_active = 1',
+          [userId, contentId, contentType],
+          (err, row) => {
+            if (err) rej(err);
+            else res(row);
+          }
+        );
+      });
+
+      if (!upvoteRecord) {
+        return reject(new Error('Nessun upvote attivo trovato per questo contenuto'));
+      }
+
+      const pointsToDeduct = upvoteRecord.points_granted;
+      const creditsToDeduct = upvoteRecord.credits_granted;
+
+      // Get user for balance check
+      const user = await getUser(userId);
+
+      db.serialize(() => {
+        // Deduct points (allow negative if necessary)
+        db.run(
+          'UPDATE users SET punti_classifica = punti_classifica - ? WHERE id_univoco = ?',
+          [pointsToDeduct, userId],
+          (err) => {
+            if (err) return reject(err);
+          }
+        );
+
+        // Deduct credits if applicable (prevent negative balance)
+        if (creditsToDeduct > 0) {
+          const newCredits = Math.max(0, user.crediti - creditsToDeduct);
+          db.run(
+            'UPDATE users SET crediti = ? WHERE id_univoco = ?',
+            [newCredits, userId],
+            (err) => {
+              if (err) return reject(err);
+            }
+          );
+        }
+
+        // Mark upvote as inactive
+        db.run(
+          'UPDATE upvote_tracking SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [upvoteRecord.id],
+          function(err) {
+            if (err) reject(err);
+            else resolve({
+              upvoteId: upvoteRecord.id,
+              pointsDeducted: pointsToDeduct,
+              creditsDeducted: creditsToDeduct,
+              newPoints: user.punti_classifica - pointsToDeduct,
+              newCredits: Math.max(0, user.crediti - creditsToDeduct)
+            });
+          }
+        );
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Get user's upvote history
+const getUserUpvotes = (userId, limit = 20) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT * FROM upvote_tracking WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?',
       [userId, limit],
       (err, rows) => {
         if (err) reject(err);
@@ -2129,6 +2468,10 @@ module.exports = {
   checkMonthlyReset,
   updateUserPoints,
   SOCIAL_REWARDS,
+  // Upvote tracking functions
+  recordUpvote,
+  retractUpvote,
+  getUserUpvotes,
   // Lobby & Matchmaking functions
   getGameTable,
   getAllGameTables,

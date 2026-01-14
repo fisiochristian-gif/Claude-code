@@ -377,6 +377,86 @@ app.get('/api/social/reset-status', async (req, res) => {
   }
 });
 
+// ================================
+// UPVOTE TRACKING ENDPOINTS
+// ================================
+
+// Record upvote and grant points/credits
+app.post('/api/social/upvote', async (req, res) => {
+  try {
+    const { userId, contentId, contentType, points, credits } = req.body;
+
+    if (!userId || !contentId || !contentType || !points) {
+      return res.status(400).json({ error: 'userId, contentId, contentType e points richiesti' });
+    }
+
+    const result = await db.recordUpvote(userId, contentId, contentType, points, credits || 0);
+
+    // Broadcast upvote event to all clients
+    io.emit('social:upvote-granted', {
+      userId,
+      contentId,
+      contentType,
+      pointsGranted: result.pointsGranted,
+      creditsGranted: result.creditsGranted
+    });
+
+    res.json({
+      success: true,
+      message: 'Upvote registrato con successo',
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Upvote error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Retract upvote and deduct points/credits
+app.post('/api/social/retract-upvote', async (req, res) => {
+  try {
+    const { userId, contentId, contentType } = req.body;
+
+    if (!userId || !contentId || !contentType) {
+      return res.status(400).json({ error: 'userId, contentId e contentType richiesti' });
+    }
+
+    const result = await db.retractUpvote(userId, contentId, contentType);
+
+    // Broadcast retraction event to all clients
+    io.emit('social:upvote-retracted', {
+      userId,
+      contentId,
+      contentType,
+      pointsDeducted: result.pointsDeducted,
+      creditsDeducted: result.creditsDeducted
+    });
+
+    res.json({
+      success: true,
+      message: 'Upvote ritratto con successo',
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Retract upvote error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get user's upvote history
+app.get('/api/social/upvotes/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const upvotes = await db.getUserUpvotes(userId, 50);
+    res.json(upvotes);
+  } catch (error) {
+    console.error('Get upvotes error:', error);
+    res.status(500).json({ error: 'Errore recupero upvotes' });
+  }
+});
+
 // Get blog feed (proxy to avoid CORS)
 app.get('/api/blog/feed', async (req, res) => {
   try {

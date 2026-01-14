@@ -129,8 +129,17 @@ async function performAction(actionType, link = null) {
 
     const reward = socialRewards[actionType];
 
-    // Confirm with user
-    const confirmMsg = `Questa azione ${reward.once ? '(disponibile una sola volta) ' : ''}ti darà +${reward.points} Punti${reward.credits > 0 ? ` e costerà ${reward.credits} Crediti` : ' (gratis)'}. Confermare?`;
+    // Check if this is a follow action for loyalty tier display
+    const followActions = ['follow_blog', 'x_follow', 'reddit_join', 'telegram_follow'];
+    const isFollowAction = followActions.includes(actionType);
+
+    // Confirm with user (enhanced message for follow actions)
+    let confirmMsg = '';
+    if (isFollowAction) {
+        confirmMsg = `Questa azione ti darà +${reward.points} Punti${reward.credits > 0 ? ` e costerà ${reward.credits} Crediti` : ' (gratis)'}.\n\n🎯 FOLLOW PERSISTENTE:\n- Prima volta: 100% ricompensa\n- Mesi successivi: 50% ricompensa fedeltà\n\nConfermare?`;
+    } else {
+        confirmMsg = `Questa azione ${reward.once ? '(disponibile una sola volta) ' : ''}ti darà +${reward.points} Punti${reward.credits > 0 ? ` e costerà ${reward.credits} Crediti` : ' (gratis)'}. Confermare?`;
+    }
 
     if (!confirm(confirmMsg)) {
         return;
@@ -165,11 +174,13 @@ async function performAction(actionType, link = null) {
             puntiDisplay.textContent = result.newPoints;
         }
 
-        // Show success
-        showSocialStatus(
-            `✅ ${result.message}! Nuovi Punti: ${result.newPoints}`,
-            'success'
-        );
+        // Show success with tier information
+        let successMessage = `✅ ${result.message}! Nuovi Punti: ${result.newPoints}`;
+        if (result.rewardTier && result.tierMessage) {
+            successMessage += `\n\n${getTierEmoji(result.rewardTier)} ${result.tierMessage}`;
+        }
+
+        showSocialStatus(successMessage, 'success');
 
         // Reload actions history
         await loadUserActions();
@@ -186,6 +197,16 @@ async function performAction(actionType, link = null) {
         console.error('Social action error:', error);
         showSocialStatus(error.message || 'Errore durante l\'azione', 'error');
     }
+}
+
+// Get emoji for reward tier
+function getTierEmoji(tier) {
+    const emojis = {
+        'initial': '🎉',
+        'loyalty': '💎',
+        'standard': '⭐'
+    };
+    return emojis[tier] || '✅';
 }
 
 // ================================
@@ -216,9 +237,24 @@ async function loadUserActions() {
             const actionName = getActionName(action.action_type);
             const date = new Date(action.timestamp).toLocaleString('it-IT');
 
+            // Determine if loyalty tier based on follow actions with reduced points
+            const followActions = ['follow_blog', 'x_follow', 'reddit_join', 'telegram_follow'];
+            const isFollowAction = followActions.includes(action.action_type);
+            let tierBadge = '';
+
+            if (isFollowAction) {
+                // Check if points earned are reduced (loyalty tier)
+                const fullReward = getFullRewardPoints(action.action_type);
+                if (action.points_earned < fullReward && action.points_earned > 0) {
+                    tierBadge = '<span class="tier-badge loyalty">💎 Fedeltà 50%</span>';
+                } else if (action.points_earned === fullReward) {
+                    tierBadge = '<span class="tier-badge initial">🎉 Prima volta 100%</span>';
+                }
+            }
+
             actionDiv.innerHTML = `
                 <div class="action-info">
-                    <div class="action-name">${actionName}</div>
+                    <div class="action-name">${actionName} ${tierBadge}</div>
                     <div class="action-date">${date}</div>
                 </div>
                 <div class="action-points">+${action.points_earned} Punti</div>
@@ -245,6 +281,16 @@ function getActionName(actionType) {
         'referral_invite': '🎁 Referral Invite'
     };
     return names[actionType] || actionType;
+}
+
+function getFullRewardPoints(actionType) {
+    const fullRewards = {
+        'follow_blog': 500,
+        'x_follow': 300,
+        'reddit_join': 400,
+        'telegram_follow': 350
+    };
+    return fullRewards[actionType] || 0;
 }
 
 // ================================

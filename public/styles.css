@@ -1517,6 +1517,33 @@ body::before {
     color: var(--text-primary);
     margin-bottom: 0.3rem;
     font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Reward Tier Badges */
+.tier-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tier-badge.initial {
+    background: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
+    color: #000;
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+}
+
+.tier-badge.loyalty {
+    background: linear-gradient(135deg, #9b59b6 0%, #3498db 100%);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(155, 89, 182, 0.4);
 }
 
 .action-date {
