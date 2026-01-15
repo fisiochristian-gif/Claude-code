@@ -35,3 +35,20 @@ build/
 
 # Test scripts
 test-*.js
+
+# PM2
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Backups
+backups/
+*.db.bak
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.cache
