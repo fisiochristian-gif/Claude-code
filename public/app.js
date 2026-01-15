@@ -33,6 +33,7 @@ const socialRewardsPage = document.getElementById('socialRewardsPage');
 const rdInsightsPage = document.getElementById('rdInsightsPage');
 const socialPage = document.getElementById('socialPage');
 const missionPage = document.getElementById('missionPage');
+const manualPage = document.getElementById('manualPage');
 
 // Hub Cards (will be dynamically generated)
 let hubCards = [];
@@ -68,6 +69,14 @@ function setupEventListeners() {
     homeBtn.addEventListener('click', () => {
         switchPage('hub');
     });
+
+    // Help Button
+    const helpBtn = document.getElementById('helpBtn');
+    if (helpBtn) {
+        helpBtn.addEventListener('click', () => {
+            switchPage('manual');
+        });
+    }
 
     // Tab Navigation
     tabButtons.forEach(button => {
@@ -313,7 +322,7 @@ function switchPage(pageName) {
     console.log(`🔄 Switching to page: ${pageName}`);
 
     // Hide all pages
-    const pages = [hubScreen, stakingPage, gameCenterPage, socialRewardsPage, rdInsightsPage, socialPage, missionPage];
+    const pages = [hubScreen, stakingPage, gameCenterPage, socialRewardsPage, rdInsightsPage, socialPage, missionPage, manualPage];
     pages.forEach(page => {
         if (page) {
             page.classList.remove('active');
@@ -380,6 +389,14 @@ function switchPage(pageName) {
             // Initialize Mission Control (Blog + Social-to-Earn + Leaderboard)
             if (typeof initializeMissionControl === 'function') {
                 initializeMissionControl();
+            }
+            break;
+
+        case 'manual':
+            if (manualPage) manualPage.classList.add('active');
+            // Render Station Manual
+            if (window.stationManual && typeof window.stationManual.render === 'function') {
+                window.stationManual.render();
             }
             break;
     }

@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="styles-lunopoly-neon.css">
     <link rel="stylesheet" href="styles-rd-station.css">
+    <link rel="stylesheet" href="styles-station-manual.css">
+    <link rel="stylesheet" href="styles-brand-overrides.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
@@ -376,6 +378,13 @@
             </div>
         </div>
 
+        <!-- STATION MANUAL Page -->
+        <div id="manualPage" class="page-container">
+            <div id="stationManualContainer">
+                <!-- Station Manual content will be rendered by station-manual.js -->
+            </div>
+        </div>
+
         <!-- MISSION CONTROL Page -->
         <div id="missionPage" class="page-container">
             <div class="page-content">
@@ -492,9 +501,14 @@
         </div>
     </div>
 
+    <!-- Floating Help Button -->
+    <button id="helpBtn" class="help-button" title="Open Station Manual" aria-label="Open Station Manual"></button>
+
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
+    <script src="modules/rd-brand-voice.js"></script>
+    <script src="modules/station-manual.js"></script>
     <script src="modules/rd-station-hub.js"></script>
     <script src="modules/social-tasks.js"></script>
     <script src="modules/dashboard.js"></script>
