@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
 const crypto = require('crypto');
+const cron = require('node-cron');
 
 const db = require('./database');
 const TimerManager = require('./timer-manager');
@@ -363,6 +364,139 @@ app.get('/api/deposits/:userId', async (req, res) => {
     res.json(deposits);
   } catch (error) {
     res.status(500).json({ error: 'Errore recupero depositi' });
+  }
+});
+
+// Setup staking strategy (Tier selection & yield activation)
+app.post('/api/staking/setup', async (req, res) => {
+  try {
+    const { userId, luncAmount } = req.body;
+
+    if (!userId || !luncAmount) {
+      return res.status(400).json({ error: 'userId e luncAmount richiesti' });
+    }
+
+    // Validate amount
+    if (luncAmount < 100000) {
+      return res.status(400).json({ error: 'Importo minimo: 100,000 LUNC' });
+    }
+
+    if (luncAmount % 100000 !== 0) {
+      return res.status(400).json({ error: 'L\'importo deve essere in multipli di 100,000 LUNC' });
+    }
+
+    // Calculate instant mint (80% APR rule)
+    const CREDITS_PER_100K = 1500;
+    const initialMint = Math.floor((luncAmount / 100000) * CREDITS_PER_100K);
+
+    // Get current user
+    const user = await db.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Utente non trovato' });
+    }
+
+    // Calculate next minting timestamp (24 hours from now)
+    const now = new Date();
+    const nextMintingTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    // Update user with staking strategy
+    await db.run(`
+      UPDATE users
+      SET total_deposited_lunc = ?,
+          crediti = crediti + ?,
+          next_minting_timestamp = ?
+      WHERE id_univoco = ?
+    `, [luncAmount, initialMint, nextMintingTime.toISOString(), userId]);
+
+    // Get updated user
+    const updatedUser = await db.getUser(userId);
+
+    // Broadcast staking setup event
+    io.emit('staking:setup-completed', {
+      userId,
+      luncAmount,
+      initialMint
+    });
+
+    console.log(`✅ Staking setup: ${userId} - ${luncAmount} LUNC - ${initialMint} Credits minted`);
+
+    res.json({
+      success: true,
+      initialMint,
+      newCredits: updatedUser.crediti,
+      nextMintingTimestamp: nextMintingTime.toISOString(),
+      message: 'Strategia attivata con successo!'
+    });
+
+  } catch (error) {
+    console.error('Staking setup error:', error);
+    res.status(500).json({ error: 'Errore durante l\'attivazione della strategia' });
+  }
+});
+
+// Check and execute daily minting (called by cron or manually)
+app.post('/api/staking/check-minting', async (req, res) => {
+  try {
+    const now = new Date();
+
+    // Find users with expired minting timestamps
+    const usersToMint = await db.all(`
+      SELECT id_univoco, total_deposited_lunc, crediti, next_minting_timestamp
+      FROM users
+      WHERE next_minting_timestamp IS NOT NULL
+      AND datetime(next_minting_timestamp) <= datetime('now')
+      AND total_deposited_lunc > 0
+    `);
+
+    if (usersToMint.length === 0) {
+      return res.json({ success: true, message: 'Nessun minting da eseguire', mintedUsers: 0 });
+    }
+
+    let totalMinted = 0;
+    const results = [];
+
+    for (const user of usersToMint) {
+      // Calculate daily yield (80% APR)
+      const APR = 0.80;
+      const CREDITS_PER_100K = 1500;
+      const creditsPerLunc = CREDITS_PER_100K / 100000;
+      const dailyRate = APR / 365;
+      const dailyYield = Math.floor(user.total_deposited_lunc * dailyRate * creditsPerLunc);
+
+      // Update user
+      const nextMintingTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      await db.run(`
+        UPDATE users
+        SET crediti = crediti + ?,
+            next_minting_timestamp = ?
+        WHERE id_univoco = ?
+      `, [dailyYield, nextMintingTime.toISOString(), user.id_univoco]);
+
+      totalMinted += dailyYield;
+      results.push({
+        userId: user.id_univoco,
+        creditsMinted: dailyYield
+      });
+
+      // Send notification via Socket.IO
+      io.to(user.id_univoco).emit('daily-yield-minted', {
+        amount: dailyYield,
+        nextMintingTime: nextMintingTime.toISOString()
+      });
+
+      console.log(`💰 Daily minting: ${user.id_univoco} - ${dailyYield} Credits`);
+    }
+
+    res.json({
+      success: true,
+      mintedUsers: usersToMint.length,
+      totalCreditsMinted: totalMinted,
+      results
+    });
+
+  } catch (error) {
+    console.error('Check minting error:', error);
+    res.status(500).json({ error: 'Errore durante il controllo minting' });
   }
 });
 
@@ -2317,6 +2451,68 @@ const startServer = async () => {
         console.error('Monthly reset check error:', error);
       }
     }, 24 * 60 * 60 * 1000); // Every 24 hours
+
+    // ================================
+    // DAILY MINTING CRON JOB
+    // ================================
+    // Check every hour for users whose 24h minting period has expired
+    cron.schedule('0 * * * *', async () => {
+      try {
+        console.log('⏰ Running daily minting check...');
+
+        const now = new Date();
+
+        // Find users with expired minting timestamps
+        const usersToMint = await db.all(`
+          SELECT id_univoco, total_deposited_lunc, crediti, next_minting_timestamp
+          FROM users
+          WHERE next_minting_timestamp IS NOT NULL
+          AND datetime(next_minting_timestamp) <= datetime('now')
+          AND total_deposited_lunc > 0
+        `);
+
+        if (usersToMint.length === 0) {
+          console.log('✓ No users ready for minting');
+          return;
+        }
+
+        console.log(`💰 Processing minting for ${usersToMint.length} users...`);
+
+        for (const user of usersToMint) {
+          // Calculate daily yield (80% APR)
+          const APR = 0.80;
+          const CREDITS_PER_100K = 1500;
+          const creditsPerLunc = CREDITS_PER_100K / 100000;
+          const dailyRate = APR / 365;
+          const dailyYield = Math.floor(user.total_deposited_lunc * dailyRate * creditsPerLunc);
+
+          // Update user
+          const nextMintingTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          await db.run(`
+            UPDATE users
+            SET crediti = crediti + ?,
+                next_minting_timestamp = ?
+            WHERE id_univoco = ?
+          `, [dailyYield, nextMintingTime.toISOString(), user.id_univoco]);
+
+          // Send notification via Socket.IO
+          io.to(user.id_univoco).emit('daily-yield-minted', {
+            amount: dailyYield,
+            nextMintingTime: nextMintingTime.toISOString(),
+            message: 'Your daily strategy yield has arrived!'
+          });
+
+          console.log(`✅ Minted ${dailyYield} Credits for user ${user.id_univoco}`);
+        }
+
+        console.log(`✅ Daily minting completed: ${usersToMint.length} users processed`);
+
+      } catch (error) {
+        console.error('❌ Daily minting cron error:', error);
+      }
+    });
+
+    console.log('⏰ Daily minting cron job scheduled (runs every hour)');
 
     server.listen(PORT, () => {
       console.log(`🚀 LUNC HORIZON Server running on http://localhost:${PORT}`);

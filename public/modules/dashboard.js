@@ -34,6 +34,11 @@ async function initializeDashboard() {
         await loadGlobalStats();
         updateUserStats();
 
+        // Initialize staking setup module
+        if (typeof initializeStakingSetup === 'function') {
+            initializeStakingSetup();
+        }
+
         // Auto-refresh global stats every 10 seconds
         setInterval(loadGlobalStats, 10000);
 
@@ -42,6 +47,11 @@ async function initializeDashboard() {
         // Just update stats when revisiting
         updateUserStats();
         await loadGlobalStats();
+
+        // Re-initialize staking setup to refresh data
+        if (typeof initializeStakingSetup === 'function') {
+            initializeStakingSetup();
+        }
     }
 }
 
