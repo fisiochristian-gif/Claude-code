@@ -36,6 +36,13 @@ const gameState = {
   turnTimer: null
 };
 
+// Trade system - manages active trade proposals
+const tradeSystem = {
+  activeTrades: new Map(), // tradeId -> tradeData
+  silencedAssets: new Map(), // propertyId -> tradeId
+  autoAcceptTimers: new Map() // tradeId -> timeoutId
+};
+
 // Timer Manager - will be initialized after database
 let timerManager = null;
 
@@ -368,6 +375,7 @@ app.get('/api/deposits/:userId', async (req, res) => {
 });
 
 // Setup staking strategy (Tier selection & yield activation)
+// MONTHLY MINTING: Credits granted once per month (every 30 days)
 app.post('/api/staking/setup', async (req, res) => {
   try {
     const { userId, luncAmount } = req.body;
@@ -385,28 +393,70 @@ app.post('/api/staking/setup', async (req, res) => {
       return res.status(400).json({ error: 'L\'importo deve essere in multipli di 100,000 LUNC' });
     }
 
-    // Calculate instant mint (80% APR rule)
-    const CREDITS_PER_100K = 1500;
-    const initialMint = Math.floor((luncAmount / 100000) * CREDITS_PER_100K);
-
     // Get current user
     const user = await db.getUser(userId);
     if (!user) {
       return res.status(404).json({ error: 'Utente non trovato' });
     }
 
-    // Calculate next minting timestamp (24 hours from now)
     const now = new Date();
-    const nextMintingTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const CREDITS_PER_100K = 1500;
+    const APR = 0.80;
+
+    let initialMint = 0;
+    let nextMintingTime;
+    let isRecharge = false;
+
+    // Check if user already has an active staking strategy
+    if (user.total_deposited_lunc > 0 && user.next_minting_timestamp) {
+      // RECHARGE LOGIC: User is adding more LUNC during the month
+      isRecharge = true;
+      const previousAmount = user.total_deposited_lunc;
+      const addedAmount = luncAmount - previousAmount;
+
+      if (addedAmount <= 0) {
+        return res.status(400).json({ error: 'Il nuovo importo deve essere maggiore del precedente' });
+      }
+
+      // Calculate remaining days until next monthly minting
+      const nextMinting = new Date(user.next_minting_timestamp);
+      const daysRemaining = Math.ceil((nextMinting - now) / (1000 * 60 * 60 * 24));
+
+      if (daysRemaining <= 0) {
+        // Next minting is overdue, treat as new setup
+        isRecharge = false;
+      } else {
+        // Calculate credits for ADDED amount only, prorated for remaining days
+        // Monthly yield: (addedAmount * APR / 12) * (CREDITS_PER_100K / 100000)
+        const monthlyYield = (addedAmount * (APR / 12)) * (CREDITS_PER_100K / 100000);
+        const proratedYield = Math.floor(monthlyYield * (daysRemaining / 30));
+
+        initialMint = proratedYield;
+        nextMintingTime = nextMinting; // Keep existing timer
+
+        console.log(`🔄 RECHARGE: ${userId} added ${addedAmount} LUNC, ${daysRemaining} days left, ${proratedYield} credits`);
+      }
+    }
+
+    if (!isRecharge) {
+      // NEW SETUP: Calculate instant mint for full amount
+      initialMint = Math.floor((luncAmount / 100000) * CREDITS_PER_100K);
+
+      // Set next minting to 30 days from now
+      nextMintingTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      console.log(`✨ NEW SETUP: ${userId} - ${luncAmount} LUNC - ${initialMint} credits instant mint`);
+    }
 
     // Update user with staking strategy
     await db.run(`
       UPDATE users
       SET total_deposited_lunc = ?,
           crediti = crediti + ?,
-          next_minting_timestamp = ?
+          next_minting_timestamp = ?,
+          last_staking_update = ?
       WHERE id_univoco = ?
-    `, [luncAmount, initialMint, nextMintingTime.toISOString(), userId]);
+    `, [luncAmount, initialMint, nextMintingTime.toISOString(), now.toISOString(), userId]);
 
     // Get updated user
     const updatedUser = await db.getUser(userId);
@@ -415,17 +465,19 @@ app.post('/api/staking/setup', async (req, res) => {
     io.emit('staking:setup-completed', {
       userId,
       luncAmount,
-      initialMint
+      initialMint,
+      isRecharge
     });
-
-    console.log(`✅ Staking setup: ${userId} - ${luncAmount} LUNC - ${initialMint} Credits minted`);
 
     res.json({
       success: true,
       initialMint,
       newCredits: updatedUser.crediti,
       nextMintingTimestamp: nextMintingTime.toISOString(),
-      message: 'Strategia attivata con successo!'
+      isRecharge,
+      message: isRecharge
+        ? 'Strategia aggiornata! Credits per importo aggiunto calcolati proporzionalmente.'
+        : 'Strategia attivata con successo! Prossimo minting mensile tra 30 giorni.'
     });
 
   } catch (error) {
@@ -434,7 +486,7 @@ app.post('/api/staking/setup', async (req, res) => {
   }
 });
 
-// Check and execute daily minting (called by cron or manually)
+// Check and execute MONTHLY minting (called by cron or manually)
 app.post('/api/staking/check-minting', async (req, res) => {
   try {
     const now = new Date();
@@ -456,35 +508,36 @@ app.post('/api/staking/check-minting', async (req, res) => {
     const results = [];
 
     for (const user of usersToMint) {
-      // Calculate daily yield (80% APR)
+      // Calculate MONTHLY yield (80% APR / 12 months)
       const APR = 0.80;
       const CREDITS_PER_100K = 1500;
       const creditsPerLunc = CREDITS_PER_100K / 100000;
-      const dailyRate = APR / 365;
-      const dailyYield = Math.floor(user.total_deposited_lunc * dailyRate * creditsPerLunc);
+      const monthlyRate = APR / 12;
+      const monthlyYield = Math.floor(user.total_deposited_lunc * monthlyRate * creditsPerLunc);
 
-      // Update user
-      const nextMintingTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      // Update user - set next minting to 30 days from now
+      const nextMintingTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       await db.run(`
         UPDATE users
         SET crediti = crediti + ?,
             next_minting_timestamp = ?
         WHERE id_univoco = ?
-      `, [dailyYield, nextMintingTime.toISOString(), user.id_univoco]);
+      `, [monthlyYield, nextMintingTime.toISOString(), user.id_univoco]);
 
-      totalMinted += dailyYield;
+      totalMinted += monthlyYield;
       results.push({
         userId: user.id_univoco,
-        creditsMinted: dailyYield
+        creditsMinted: monthlyYield
       });
 
       // Send notification via Socket.IO
-      io.to(user.id_univoco).emit('daily-yield-minted', {
-        amount: dailyYield,
-        nextMintingTime: nextMintingTime.toISOString()
+      io.to(user.id_univoco).emit('monthly-yield-minted', {
+        amount: monthlyYield,
+        nextMintingTime: nextMintingTime.toISOString(),
+        message: 'Il tuo minting mensile è arrivato! 💰'
       });
 
-      console.log(`💰 Daily minting: ${user.id_univoco} - ${dailyYield} Credits`);
+      console.log(`💰 Monthly minting: ${user.id_univoco} - ${monthlyYield} Credits`);
     }
 
     res.json({
@@ -497,6 +550,350 @@ app.post('/api/staking/check-minting', async (req, res) => {
   } catch (error) {
     console.error('Check minting error:', error);
     res.status(500).json({ error: 'Errore durante il controllo minting' });
+  }
+});
+
+// ================================
+// TRADE SYSTEM ENDPOINTS
+// ================================
+
+// Helper function: Execute trade transfer
+async function executeTradeTransfer(tradeData) {
+  const { fromPlayerId, toPlayerId, tableId, offeredProperties, offeredLAmount, requestedProperties, requestedLAmount } = tradeData;
+
+  try {
+    // Transfer properties FROM → TO
+    if (offeredProperties && offeredProperties.length > 0) {
+      for (const propId of offeredProperties) {
+        await db.run(`
+          UPDATE properties
+          SET owner_id = ?
+          WHERE id = ? AND table_id = ?
+        `, [toPlayerId, propId, tableId]);
+      }
+    }
+
+    // Transfer properties TO → FROM
+    if (requestedProperties && requestedProperties.length > 0) {
+      for (const propId of requestedProperties) {
+        await db.run(`
+          UPDATE properties
+          SET owner_id = ?
+          WHERE id = ? AND table_id = ?
+        `, [fromPlayerId, propId, tableId]);
+      }
+    }
+
+    // Transfer L currency FROM → TO
+    if (offeredLAmount > 0) {
+      await db.run(`
+        UPDATE game_players
+        SET balance = balance - ?
+        WHERE user_id = ? AND table_id = ?
+      `, [offeredLAmount, fromPlayerId, tableId]);
+
+      await db.run(`
+        UPDATE game_players
+        SET balance = balance + ?
+        WHERE user_id = ? AND table_id = ?
+      `, [offeredLAmount, toPlayerId, tableId]);
+    }
+
+    // Transfer L currency TO → FROM
+    if (requestedLAmount > 0) {
+      await db.run(`
+        UPDATE game_players
+        SET balance = balance + ?
+        WHERE user_id = ? AND table_id = ?
+      `, [requestedLAmount, fromPlayerId, tableId]);
+
+      await db.run(`
+        UPDATE game_players
+        SET balance = balance - ?
+        WHERE user_id = ? AND table_id = ?
+      `, [requestedLAmount, toPlayerId, tableId]);
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Trade transfer error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Helper function: Cancel auto-accept timer
+function cancelAutoAcceptTimer(tradeId) {
+  const timerId = tradeSystem.autoAcceptTimers.get(tradeId);
+  if (timerId) {
+    clearTimeout(timerId);
+    tradeSystem.autoAcceptTimers.delete(tradeId);
+  }
+}
+
+// Helper function: Release silenced assets
+function releaseSilencedAssets(tradeId) {
+  const trade = tradeSystem.activeTrades.get(tradeId);
+  if (trade && trade.offeredProperties) {
+    for (const propId of trade.offeredProperties) {
+      tradeSystem.silencedAssets.delete(propId);
+    }
+  }
+}
+
+// Propose a trade (creates pending trade with 1-minute timer)
+app.post('/api/game/propose-trade', async (req, res) => {
+  try {
+    const { fromPlayerId, toPlayerId, tableId, offeredProperties, offeredLAmount, requestedProperties, requestedLAmount } = req.body;
+
+    if (!fromPlayerId || !toPlayerId || !tableId) {
+      return res.status(400).json({ error: 'fromPlayerId, toPlayerId e tableId richiesti' });
+    }
+
+    // Generate unique trade ID
+    const tradeId = `trade_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Create trade data
+    const tradeData = {
+      tradeId,
+      fromPlayerId,
+      toPlayerId,
+      tableId,
+      offeredProperties: offeredProperties || [],
+      offeredLAmount: offeredLAmount || 0,
+      requestedProperties: requestedProperties || [],
+      requestedLAmount: requestedLAmount || 0,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60000).toISOString() // 1 minute from now
+    };
+
+    // Store in active trades
+    tradeSystem.activeTrades.set(tradeId, tradeData);
+
+    // SILENCE ASSETS: Lock offered properties for 1 minute
+    if (offeredProperties && offeredProperties.length > 0) {
+      for (const propId of offeredProperties) {
+        tradeSystem.silencedAssets.set(propId, tradeId);
+      }
+    }
+
+    // Set 1-MINUTE AUTO-ACCEPT TIMER
+    const autoAcceptTimer = setTimeout(async () => {
+      console.log(`⏰ 1-MINUTE SILENCE EXPIRED: Auto-accepting trade ${tradeId}`);
+
+      const trade = tradeSystem.activeTrades.get(tradeId);
+      if (trade && trade.status === 'pending') {
+        // Execute trade transfer
+        const result = await executeTradeTransfer(trade);
+
+        if (result.success) {
+          trade.status = 'auto-accepted';
+          trade.completedAt = new Date().toISOString();
+
+          // Notify both players
+          io.to(trade.fromPlayerId).emit('trade:auto-accepted', {
+            tradeId,
+            message: 'Il ricevente non ha risposto entro 1 minuto. Trade accettato automaticamente!'
+          });
+
+          io.to(trade.toPlayerId).emit('trade:auto-accepted', {
+            tradeId,
+            message: 'Non hai risposto entro 1 minuto. Trade accettato automaticamente!'
+          });
+
+          // Broadcast to table
+          io.to(`table_${trade.tableId}`).emit('trade:executed', {
+            tradeId,
+            type: 'auto-accepted',
+            fromPlayerId: trade.fromPlayerId,
+            toPlayerId: trade.toPlayerId
+          });
+
+          console.log(`✅ Auto-accepted trade ${tradeId}`);
+        }
+
+        // Cleanup
+        releaseSilencedAssets(tradeId);
+        tradeSystem.autoAcceptTimers.delete(tradeId);
+      }
+    }, 60000); // 60 seconds
+
+    tradeSystem.autoAcceptTimers.set(tradeId, autoAcceptTimer);
+
+    // Notify recipient
+    io.to(toPlayerId).emit('trade:proposal-received', tradeData);
+
+    // Broadcast to table (excluding the two players)
+    io.to(`table_${tableId}`).emit('trade:proposal-created', {
+      tradeId,
+      fromPlayerId,
+      toPlayerId,
+      message: `${fromPlayerId} ha proposto un trade a ${toPlayerId}`
+    });
+
+    console.log(`📤 Trade proposed: ${tradeId} from ${fromPlayerId} to ${toPlayerId}`);
+
+    res.json({
+      success: true,
+      tradeId,
+      message: 'Trade proposto! Il ricevente ha 1 minuto per rispondere, altrimenti verrà accettato automaticamente.',
+      expiresAt: tradeData.expiresAt
+    });
+
+  } catch (error) {
+    console.error('Propose trade error:', error);
+    res.status(500).json({ error: 'Errore durante la proposta di trade' });
+  }
+});
+
+// Accept trade manually (before 1-minute timeout)
+app.post('/api/game/accept-trade', async (req, res) => {
+  try {
+    const { tradeId, playerId } = req.body;
+
+    if (!tradeId || !playerId) {
+      return res.status(400).json({ error: 'tradeId e playerId richiesti' });
+    }
+
+    const trade = tradeSystem.activeTrades.get(tradeId);
+
+    if (!trade) {
+      return res.status(404).json({ error: 'Trade non trovato' });
+    }
+
+    if (trade.toPlayerId !== playerId) {
+      return res.status(403).json({ error: 'Solo il ricevente può accettare questo trade' });
+    }
+
+    if (trade.status !== 'pending') {
+      return res.status(400).json({ error: 'Trade non più disponibile' });
+    }
+
+    // Cancel auto-accept timer
+    cancelAutoAcceptTimer(tradeId);
+
+    // Execute trade transfer
+    const result = await executeTradeTransfer(trade);
+
+    if (!result.success) {
+      return res.status(500).json({ error: 'Errore durante il trasferimento: ' + result.error });
+    }
+
+    // Update trade status
+    trade.status = 'accepted';
+    trade.completedAt = new Date().toISOString();
+
+    // Notify both players
+    io.to(trade.fromPlayerId).emit('trade:accepted', {
+      tradeId,
+      message: `${trade.toPlayerId} ha accettato il tuo trade!`
+    });
+
+    io.to(trade.toPlayerId).emit('trade:accepted', {
+      tradeId,
+      message: 'Hai accettato il trade!'
+    });
+
+    // Broadcast to table
+    io.to(`table_${trade.tableId}`).emit('trade:executed', {
+      tradeId,
+      type: 'accepted',
+      fromPlayerId: trade.fromPlayerId,
+      toPlayerId: trade.toPlayerId
+    });
+
+    // Cleanup
+    releaseSilencedAssets(tradeId);
+
+    console.log(`✅ Trade accepted: ${tradeId}`);
+
+    res.json({
+      success: true,
+      message: 'Trade accettato con successo!',
+      trade
+    });
+
+  } catch (error) {
+    console.error('Accept trade error:', error);
+    res.status(500).json({ error: 'Errore durante l\'accettazione del trade' });
+  }
+});
+
+// Reject trade (cancels proposal and releases assets)
+app.post('/api/game/reject-trade', async (req, res) => {
+  try {
+    const { tradeId, playerId } = req.body;
+
+    if (!tradeId || !playerId) {
+      return res.status(400).json({ error: 'tradeId e playerId richiesti' });
+    }
+
+    const trade = tradeSystem.activeTrades.get(tradeId);
+
+    if (!trade) {
+      return res.status(404).json({ error: 'Trade non trovato' });
+    }
+
+    if (trade.toPlayerId !== playerId) {
+      return res.status(403).json({ error: 'Solo il ricevente può rifiutare questo trade' });
+    }
+
+    if (trade.status !== 'pending') {
+      return res.status(400).json({ error: 'Trade non più disponibile' });
+    }
+
+    // Cancel auto-accept timer
+    cancelAutoAcceptTimer(tradeId);
+
+    // Update trade status
+    trade.status = 'rejected';
+    trade.completedAt = new Date().toISOString();
+
+    // Notify both players
+    io.to(trade.fromPlayerId).emit('trade:rejected', {
+      tradeId,
+      message: `${trade.toPlayerId} ha rifiutato il tuo trade.`
+    });
+
+    io.to(trade.toPlayerId).emit('trade:rejected', {
+      tradeId,
+      message: 'Hai rifiutato il trade.'
+    });
+
+    // Cleanup
+    releaseSilencedAssets(tradeId);
+    tradeSystem.activeTrades.delete(tradeId);
+
+    console.log(`❌ Trade rejected: ${tradeId}`);
+
+    res.json({
+      success: true,
+      message: 'Trade rifiutato.'
+    });
+
+  } catch (error) {
+    console.error('Reject trade error:', error);
+    res.status(500).json({ error: 'Errore durante il rifiuto del trade' });
+  }
+});
+
+// Get active trades for a table
+app.get('/api/game/trades/:tableId', (req, res) => {
+  try {
+    const { tableId } = req.params;
+
+    const tableTrades = Array.from(tradeSystem.activeTrades.values())
+      .filter(trade => trade.tableId === tableId && trade.status === 'pending');
+
+    res.json({
+      success: true,
+      trades: tableTrades
+    });
+
+  } catch (error) {
+    console.error('Get trades error:', error);
+    res.status(500).json({ error: 'Errore durante il recupero dei trade' });
   }
 });
 
@@ -743,6 +1140,118 @@ app.get('/api/blog/feed', async (req, res) => {
   } catch (error) {
     console.error('Blog feed error:', error);
     res.status(500).json({ error: 'Errore recupero feed blog' });
+  }
+});
+
+// ================================
+// SOCIAL PENALTY SYSTEM
+// ================================
+
+// Check task persistence (verify if upvotes still exist)
+// NOTE: This requires external API access to social platforms
+// For now, provides infrastructure for future implementation
+app.post('/api/social/check-persistence', async (req, res) => {
+  try {
+    const { userId, actionType, linkUrl } = req.body;
+
+    if (!userId || !actionType || !linkUrl) {
+      return res.status(400).json({ error: 'userId, actionType e linkUrl richiesti' });
+    }
+
+    // TODO: Implement actual verification with social platform APIs
+    // For Reddit: Use Reddit API to check if upvote exists
+    // For Twitter/X: Use Twitter API to check if like exists
+    // For Blogger: Use Blogger API to check if comment exists
+
+    // Placeholder response
+    res.json({
+      success: true,
+      verified: true,
+      message: 'Verifica task persistence: da implementare con API esterne'
+    });
+
+  } catch (error) {
+    console.error('Check persistence error:', error);
+    res.status(500).json({ error: 'Errore durante la verifica' });
+  }
+});
+
+// Auto-check all users' social actions (cron job compatible)
+app.post('/api/social/auto-verify-all', async (req, res) => {
+  try {
+    console.log('🔍 Running auto-verification of social actions...');
+
+    // Get all recent social actions (last 30 days)
+    const recentActions = await db.all(`
+      SELECT sa.*, u.crediti, u.punti
+      FROM social_actions sa
+      JOIN users u ON sa.user_id = u.id_univoco
+      WHERE sa.created_at > datetime('now', '-30 days')
+      AND sa.link_url IS NOT NULL
+    `);
+
+    const results = {
+      checked: 0,
+      valid: 0,
+      removed: 0,
+      penaltiesApplied: 0
+    };
+
+    for (const action of recentActions) {
+      results.checked++;
+
+      // TODO: Implement actual API checks for each platform
+      // For now, assume all actions are still valid
+      const stillExists = true; // Placeholder
+
+      if (!stillExists) {
+        results.removed++;
+
+        // Apply penalty: deduct points and credits
+        const pointsToDeduct = action.points_awarded || 0;
+        const creditsToDeduct = action.credits_awarded || 0;
+
+        await db.run(`
+          UPDATE users
+          SET punti = MAX(0, punti - ?),
+              crediti = MAX(0, crediti - ?)
+          WHERE id_univoco = ?
+        `, [pointsToDeduct, creditsToDeduct, action.user_id]);
+
+        // Mark action as removed
+        await db.run(`
+          UPDATE social_actions
+          SET is_active = 0,
+              removed_at = datetime('now')
+          WHERE id = ?
+        `, [action.id]);
+
+        // Notify user via Socket.IO
+        io.to(action.user_id).emit('social:penalty-applied', {
+          actionType: action.action_type,
+          pointsDeducted: pointsToDeduct,
+          creditsDeducted: creditsToDeduct,
+          message: 'Hai rimosso un upvote/azione. Penalità applicata.'
+        });
+
+        results.penaltiesApplied++;
+
+        console.log(`⚠️ Penalty applied to ${action.user_id} for removed ${action.action_type}`);
+      } else {
+        results.valid++;
+      }
+    }
+
+    console.log(`✅ Auto-verification completed: ${results.checked} checked, ${results.removed} removed, ${results.penaltiesApplied} penalties`);
+
+    res.json({
+      success: true,
+      results
+    });
+
+  } catch (error) {
+    console.error('Auto-verify error:', error);
+    res.status(500).json({ error: 'Errore durante la verifica automatica' });
   }
 });
 
@@ -1945,6 +2454,78 @@ app.get('/api/cards', async (req, res) => {
 });
 
 // ================================
+// ADMIN PANEL ENDPOINTS
+// ================================
+
+// Get admin statistics
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    // Total burned credits (sum of bot winnings)
+    const burnedResult = await db.get(`
+      SELECT SUM(credits_won) as totalBurned
+      FROM game_players
+      WHERE user_id LIKE 'bot_%'
+      AND credits_won > 0
+    `);
+
+    // Total users
+    const usersResult = await db.get(`
+      SELECT COUNT(*) as totalUsers
+      FROM users
+    `);
+
+    // Total staking pool
+    const stakingResult = await db.get(`
+      SELECT SUM(total_deposited_lunc) as stakingPool
+      FROM users
+      WHERE total_deposited_lunc > 0
+    `);
+
+    // Total games played
+    const gamesResult = await db.get(`
+      SELECT COUNT(*) as totalGames
+      FROM game_sessions
+      WHERE status = 'finished'
+    `);
+
+    res.json({
+      totalBurned: burnedResult?.totalBurned || 0,
+      totalUsers: usersResult?.totalUsers || 0,
+      stakingPool: stakingResult?.stakingPool || 0,
+      totalGames: gamesResult?.totalGames || 0
+    });
+
+  } catch (error) {
+    console.error('Admin stats error:', error);
+    res.status(500).json({ error: 'Errore durante il recupero delle statistiche' });
+  }
+});
+
+// Get all users (for admin panel)
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const users = await db.all(`
+      SELECT
+        id_univoco,
+        crediti,
+        punti,
+        total_deposited_lunc,
+        last_login,
+        created_at
+      FROM users
+      ORDER BY last_login DESC
+      LIMIT 100
+    `);
+
+    res.json(users);
+
+  } catch (error) {
+    console.error('Admin users error:', error);
+    res.status(500).json({ error: 'Errore durante il recupero degli utenti' });
+  }
+});
+
+// ================================
 // END-GAME & BANKRUPTCY ENDPOINTS
 // ================================
 
@@ -2453,12 +3034,12 @@ const startServer = async () => {
     }, 24 * 60 * 60 * 1000); // Every 24 hours
 
     // ================================
-    // DAILY MINTING CRON JOB
+    // MONTHLY MINTING CRON JOB
     // ================================
-    // Check every hour for users whose 24h minting period has expired
-    cron.schedule('0 * * * *', async () => {
+    // Check daily at midnight for users whose 30-day minting period has expired
+    cron.schedule('0 0 * * *', async () => {
       try {
-        console.log('⏰ Running daily minting check...');
+        console.log('⏰ Running monthly minting check...');
 
         const now = new Date();
 
@@ -2472,47 +3053,47 @@ const startServer = async () => {
         `);
 
         if (usersToMint.length === 0) {
-          console.log('✓ No users ready for minting');
+          console.log('✓ No users ready for monthly minting');
           return;
         }
 
-        console.log(`💰 Processing minting for ${usersToMint.length} users...`);
+        console.log(`💰 Processing monthly minting for ${usersToMint.length} users...`);
 
         for (const user of usersToMint) {
-          // Calculate daily yield (80% APR)
+          // Calculate MONTHLY yield (80% APR / 12 months)
           const APR = 0.80;
           const CREDITS_PER_100K = 1500;
           const creditsPerLunc = CREDITS_PER_100K / 100000;
-          const dailyRate = APR / 365;
-          const dailyYield = Math.floor(user.total_deposited_lunc * dailyRate * creditsPerLunc);
+          const monthlyRate = APR / 12;
+          const monthlyYield = Math.floor(user.total_deposited_lunc * monthlyRate * creditsPerLunc);
 
-          // Update user
-          const nextMintingTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          // Update user - set next minting to 30 days from now
+          const nextMintingTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
           await db.run(`
             UPDATE users
             SET crediti = crediti + ?,
                 next_minting_timestamp = ?
             WHERE id_univoco = ?
-          `, [dailyYield, nextMintingTime.toISOString(), user.id_univoco]);
+          `, [monthlyYield, nextMintingTime.toISOString(), user.id_univoco]);
 
           // Send notification via Socket.IO
-          io.to(user.id_univoco).emit('daily-yield-minted', {
-            amount: dailyYield,
+          io.to(user.id_univoco).emit('monthly-yield-minted', {
+            amount: monthlyYield,
             nextMintingTime: nextMintingTime.toISOString(),
-            message: 'Your daily strategy yield has arrived!'
+            message: 'Il tuo minting mensile è arrivato! 💰'
           });
 
-          console.log(`✅ Minted ${dailyYield} Credits for user ${user.id_univoco}`);
+          console.log(`✅ Monthly minting: ${user.id_univoco} - ${monthlyYield} Credits`);
         }
 
-        console.log(`✅ Daily minting completed: ${usersToMint.length} users processed`);
+        console.log(`✅ Monthly minting completed: ${usersToMint.length} users processed`);
 
       } catch (error) {
-        console.error('❌ Daily minting cron error:', error);
+        console.error('❌ Monthly minting cron error:', error);
       }
     });
 
-    console.log('⏰ Daily minting cron job scheduled (runs every hour)');
+    console.log('⏰ Monthly minting cron job scheduled (runs daily at midnight)');
 
     server.listen(PORT, () => {
       console.log(`🚀 LUNC HORIZON Server running on http://localhost:${PORT}`);
