@@ -1,0 +1,744 @@
+/* ================================
+   LUNOPOLY NEON DARK THEME ENHANCEMENT
+   Deep Space Black + Neon Colors
+   ================================ */
+
+:root {
+    /* Neon Color Palette */
+    --deep-space-black: #050505;
+    --neon-gold: #FFD700;
+    --electric-cyan: #00FFFF;
+    --radical-magenta: #FF00FF;
+    --matrix-green: #39FF14;
+    --neon-red: #FF0040;
+    --neon-blue: #0080FF;
+
+    /* Property Group Colors */
+    --vip-group: var(--neon-gold);
+    --tech-validator: var(--electric-cyan);
+    --proposal-group: var(--radical-magenta);
+    --community-group: var(--matrix-green);
+}
+
+/* Deep Space Black Background for Game Area */
+#gameBoard {
+    background: radial-gradient(circle at center, #0a0a0a 0%, var(--deep-space-black) 70%);
+    position: relative;
+    min-height: 800px;
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    box-shadow:
+        0 0 40px rgba(255, 215, 0, 0.2),
+        inset 0 0 100px rgba(0, 0, 0, 0.8);
+}
+
+/* ================================
+   NEON BORDERED PROPERTY TILES
+   ================================ */
+
+/* VIP Group (Gold) - Expensive properties */
+.board-cell[data-color-group="darkblue"],
+.board-cell[data-color-group="red"] {
+    border: 2px solid var(--vip-group);
+    box-shadow:
+        0 0 15px rgba(255, 215, 0, 0.4),
+        inset 0 0 20px rgba(255, 215, 0, 0.1);
+}
+
+/* Tech/Validator Group (Cyan) */
+.board-cell[data-color-group="lightblue"],
+.board-cell[data-color-group="yellow"] {
+    border: 2px solid var(--tech-validator);
+    box-shadow:
+        0 0 15px rgba(0, 255, 255, 0.4),
+        inset 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+/* Proposal Group (Magenta) */
+.board-cell[data-color-group="pink"],
+.board-cell[data-color-group="green"] {
+    border: 2px solid var(--proposal-group);
+    box-shadow:
+        0 0 15px rgba(255, 0, 255, 0.4),
+        inset 0 0 20px rgba(255, 0, 255, 0.1);
+}
+
+/* Community Group (Matrix Green) */
+.board-cell[data-color-group="brown"],
+.board-cell[data-color-group="orange"] {
+    border: 2px solid var(--community-group);
+    box-shadow:
+        0 0 15px rgba(57, 255, 20, 0.4),
+        inset 0 0 20px rgba(57, 255, 20, 0.1);
+}
+
+/* Active Player Tile - Enhanced Glow */
+.board-cell.player-position {
+    border: 3px solid var(--neon-gold) !important;
+    box-shadow:
+        0 0 30px rgba(255, 215, 0, 0.8),
+        0 0 50px rgba(255, 215, 0, 0.5),
+        inset 0 0 30px rgba(255, 215, 0, 0.2);
+    animation: activePlayerGlow 2s ease-in-out infinite;
+    z-index: 5;
+}
+
+@keyframes activePlayerGlow {
+    0%, 100% {
+        box-shadow:
+            0 0 30px rgba(255, 215, 0, 0.8),
+            0 0 50px rgba(255, 215, 0, 0.5),
+            inset 0 0 30px rgba(255, 215, 0, 0.2);
+    }
+    50% {
+        box-shadow:
+            0 0 50px rgba(255, 215, 0, 1),
+            0 0 80px rgba(255, 215, 0, 0.7),
+            inset 0 0 40px rgba(255, 215, 0, 0.3);
+    }
+}
+
+/* Owned Property Glow */
+.board-cell.owned {
+    animation: ownedPropertyPulse 3s ease-in-out infinite;
+}
+
+@keyframes ownedPropertyPulse {
+    0%, 100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.3);
+    }
+}
+
+/* Color Bar Enhancement */
+.board-cell .color-bar {
+    height: 8px;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-shadow: 0 2px 10px currentColor;
+}
+
+/* ================================
+   LUNOPOLY LOGO - BREATHING PULSE
+   ================================ */
+
+.lunopoly-logo {
+    font-size: 4rem !important;
+    font-weight: 900;
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 25%, #FFD700 50%, #FFA500 75%, #FFD700 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 0.15em;
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.8));
+    animation: breathingPulse 4s ease-in-out infinite, gradientShift 8s ease infinite;
+}
+
+@keyframes breathingPulse {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.8));
+    }
+    50% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 40px rgba(255, 215, 0, 1));
+    }
+}
+
+@keyframes gradientShift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+/* ================================
+   3D CARD DECKS WITH PERSPECTIVE
+   ================================ */
+
+.card-decks {
+    perspective: 1000px;
+    pointer-events: all;
+}
+
+.card-deck {
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.9) 0%, rgba(10, 10, 10, 0.95) 100%);
+    border: 3px solid;
+    border-radius: 15px;
+    padding: 1.5rem;
+    width: 140px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    transform-style: preserve-3d;
+    position: relative;
+}
+
+.card-deck::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 15px;
+    background: inherit;
+    filter: blur(10px);
+    opacity: 0.5;
+    z-index: -1;
+}
+
+.card-deck.imprevisti {
+    border-color: var(--neon-red);
+    box-shadow:
+        0 5px 20px rgba(255, 0, 64, 0.4),
+        inset 0 0 20px rgba(255, 0, 64, 0.1);
+}
+
+.card-deck.probabilita {
+    border-color: var(--neon-blue);
+    box-shadow:
+        0 5px 20px rgba(0, 128, 255, 0.4),
+        inset 0 0 20px rgba(0, 128, 255, 0.1);
+}
+
+.card-deck:hover {
+    transform: translateY(-10px) rotateX(5deg) rotateY(5deg) scale(1.1);
+}
+
+.card-deck:hover.imprevisti {
+    box-shadow:
+        0 15px 40px rgba(255, 0, 64, 0.6),
+        inset 0 0 30px rgba(255, 0, 64, 0.2);
+}
+
+.card-deck:hover.probabilita {
+    box-shadow:
+        0 15px 40px rgba(0, 128, 255, 0.6),
+        inset 0 0 30px rgba(0, 128, 255, 0.2);
+}
+
+.deck-icon {
+    font-size: 3rem;
+    filter: drop-shadow(0 0 10px currentColor);
+}
+
+/* ================================
+   CARD FLIP ANIMATION OVERLAY
+   ================================ */
+
+.card-reveal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+.card-reveal {
+    perspective: 1500px;
+    width: 400px;
+    height: 600px;
+}
+
+.card-flip {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: cardFlipIn 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes cardFlipIn {
+    0% {
+        transform: rotateY(0deg) scale(0.5);
+        opacity: 0;
+    }
+    50% {
+        transform: rotateY(180deg) scale(1.2);
+        opacity: 1;
+    }
+    100% {
+        transform: rotateY(360deg) scale(1);
+        opacity: 1;
+    }
+}
+
+.card-face {
+    width: 100%;
+    height: 100%;
+    border-radius: 20px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: absolute;
+    backface-visibility: hidden;
+}
+
+.card-face.imprevisti {
+    background: linear-gradient(135deg, #2a0a0a 0%, #1a0505 100%);
+    border: 4px solid var(--neon-red);
+    box-shadow:
+        0 0 50px rgba(255, 0, 64, 0.8),
+        inset 0 0 50px rgba(255, 0, 64, 0.2);
+}
+
+.card-face.probabilita {
+    background: linear-gradient(135deg, #0a0a2a 0%, #05051a 100%);
+    border: 4px solid var(--neon-blue);
+    box-shadow:
+        0 0 50px rgba(0, 128, 255, 0.8),
+        inset 0 0 50px rgba(0, 128, 255, 0.2);
+}
+
+.card-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+}
+
+.card-face.imprevisti .card-title {
+    color: var(--neon-red);
+    text-shadow: 0 0 20px rgba(255, 0, 64, 1);
+}
+
+.card-face.probabilita .card-title {
+    color: var(--neon-blue);
+    text-shadow: 0 0 20px rgba(0, 128, 255, 1);
+}
+
+.card-description {
+    font-size: 1.5rem;
+    color: white;
+    line-height: 1.8;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.card-close-btn {
+    margin-top: 2rem;
+    padding: 1rem 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid white;
+    border-radius: 10px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.card-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+/* ================================
+   HIGH-TECH PLAYER TOKENS
+   ================================ */
+
+.player-token {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    z-index: 100;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    filter: drop-shadow(0 5px 15px currentColor);
+    animation: tokenFloat 3s ease-in-out infinite;
+}
+
+@keyframes tokenFloat {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.player-token.rocket {
+    background: radial-gradient(circle, #FFD700, #FFA500);
+    border: 3px solid var(--neon-gold);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+}
+
+.player-token.coin {
+    background: radial-gradient(circle, #00FFFF, #0080FF);
+    border: 3px solid var(--electric-cyan);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+}
+
+.player-token.node {
+    background: radial-gradient(circle, #FF00FF, #8B008B);
+    border: 3px solid var(--radical-magenta);
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+}
+
+.player-token.chart {
+    background: radial-gradient(circle, #39FF14, #00FF00);
+    border: 3px solid var(--matrix-green);
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.8);
+}
+
+/* Token Icons */
+.player-token.rocket::before { content: '🚀'; }
+.player-token.coin::before { content: '💰'; }
+.player-token.node::before { content: '🔗'; }
+.player-token.chart::before { content: '📈'; }
+
+/* LERP Movement Animation */
+.player-token.moving {
+    transition: all 0.8s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* ================================
+   GLASSMORPHISM PLAYER SIDEBAR
+   ================================ */
+
+.player-sidebar {
+    position: fixed;
+    right: 20px;
+    top: 100px;
+    width: 320px;
+    max-height: 70vh;
+    overflow-y: auto;
+    background: rgba(10, 10, 10, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 0 30px rgba(255, 215, 0, 0.1);
+    z-index: 1000;
+}
+
+.player-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.player-sidebar-icon {
+    font-size: 2.5rem;
+    filter: drop-shadow(0 0 10px currentColor);
+}
+
+.player-sidebar-info h3 {
+    color: var(--neon-gold);
+    font-size: 1.3rem;
+    margin-bottom: 0.3rem;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.player-balance {
+    font-size: 2rem;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+.player-balance .currency {
+    color: var(--neon-gold);
+}
+
+.property-inventory {
+    margin-top: 1.5rem;
+}
+
+.property-inventory-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--electric-cyan);
+    margin-bottom: 1rem;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.property-item {
+    background: rgba(20, 20, 20, 0.8);
+    border-left: 4px solid;
+    border-radius: 8px;
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.property-item:hover {
+    background: rgba(30, 30, 30, 0.9);
+    transform: translateX(5px);
+}
+
+.property-item.vip { border-left-color: var(--vip-group); }
+.property-item.tech { border-left-color: var(--tech-validator); }
+.property-item.proposal { border-left-color: var(--proposal-group); }
+.property-item.community { border-left-color: var(--community-group); }
+
+.property-name {
+    font-weight: bold;
+    color: white;
+    margin-bottom: 0.3rem;
+}
+
+.property-level {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ================================
+   TYPEWRITER NOTIFICATION LOG
+   ================================ */
+
+.notification-log {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 400px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: rgba(5, 5, 5, 0.95);
+    border: 2px solid rgba(57, 255, 20, 0.4);
+    border-radius: 15px;
+    padding: 1rem;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(57, 255, 20, 0.2);
+    z-index: 1000;
+    font-family: 'Courier New', monospace;
+}
+
+.notification-log-title {
+    color: var(--matrix-green);
+    font-weight: bold;
+    margin-bottom: 0.8rem;
+    font-size: 1rem;
+    text-shadow: 0 0 10px rgba(57, 255, 20, 0.8);
+}
+
+.notification-item {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(57, 255, 20, 0.1);
+    overflow: hidden;
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-item.typing {
+    animation: typewriter 0.5s steps(40) forwards;
+}
+
+@keyframes typewriter {
+    from {
+        width: 0;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+.notification-timestamp {
+    color: rgba(57, 255, 20, 0.6);
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+}
+
+/* Custom Scrollbar for Log */
+.notification-log::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notification-log::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+.notification-log::-webkit-scrollbar-thumb {
+    background: var(--matrix-green);
+    border-radius: 10px;
+}
+
+/* ================================
+   COUNTDOWN TIMER BAR (BLITZ MODE)
+   ================================ */
+
+.countdown-timer-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 500px;
+    background: rgba(10, 10, 10, 0.9);
+    border: 2px solid rgba(255, 215, 0, 0.5);
+    border-radius: 50px;
+    padding: 1rem 1.5rem;
+    box-shadow:
+        0 5px 20px rgba(0, 0, 0, 0.5),
+        0 0 30px rgba(255, 215, 0, 0.3);
+    z-index: 1500;
+}
+
+.countdown-label {
+    color: white;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.countdown-bar-wrapper {
+    position: relative;
+    width: 100%;
+    height: 30px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.countdown-bar {
+    height: 100%;
+    border-radius: 20px;
+    transition: all 0.1s linear;
+    position: relative;
+    overflow: hidden;
+}
+
+.countdown-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    to {
+        left: 200%;
+    }
+}
+
+/* Timer Color States */
+.countdown-bar.state-safe {
+    background: linear-gradient(90deg, var(--matrix-green) 0%, #00FF88 100%);
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.6);
+}
+
+.countdown-bar.state-warning {
+    background: linear-gradient(90deg, #FFAA00 0%, #FF8800 100%);
+    box-shadow: 0 0 20px rgba(255, 170, 0, 0.6);
+}
+
+.countdown-bar.state-danger {
+    background: linear-gradient(90deg, #FF4444 0%, #CC0000 100%);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+    animation: dangerPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes dangerPulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.countdown-time {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    z-index: 1;
+}
+
+/* ================================
+   RESPONSIVE ADJUSTMENTS
+   ================================ */
+
+@media (max-width: 1400px) {
+    .player-sidebar {
+        width: 280px;
+    }
+
+    .notification-log {
+        width: 350px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .player-sidebar {
+        right: 10px;
+        width: 250px;
+    }
+
+    .notification-log {
+        left: 10px;
+        width: 300px;
+    }
+
+    .countdown-timer-container {
+        width: 400px;
+    }
+}
+
+/* ================================
+   ACCESSIBILITY & PERFORMANCE
+   ================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .lunopoly-logo,
+    .board-cell.player-position,
+    .player-token,
+    .countdown-bar {
+        animation: none;
+    }
+
+    .card-flip {
+        animation: fadeIn 0.3s ease;
+    }
+}
+
+/* GPU Acceleration */
+.player-token,
+.card-flip,
+.countdown-bar,
+.board-cell.player-position {
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}

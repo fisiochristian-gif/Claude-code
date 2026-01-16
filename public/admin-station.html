@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Station - The RD Station</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: linear-gradient(135deg, #050505 0%, #0A0A14 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .admin-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .admin-header h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: 3px;
+        }
+
+        .admin-header p {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: rgba(10, 10, 20, 0.8);
+            backdrop-filter: blur(25px);
+            border: 2px solid rgba(255, 215, 0, 0.4);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.3);
+        }
+
+        .stat-card h3 {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            color: #00FFFF;
+            margin-bottom: 1rem;
+            letter-spacing: 1.5px;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', monospace;
+            font-size: 3rem;
+            font-weight: 900;
+            color: #FFD700;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .section {
+            background: rgba(10, 10, 20, 0.8);
+            backdrop-filter: blur(25px);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            color: #00FFFF;
+            margin-bottom: 1.5rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .users-table thead {
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .users-table th {
+            padding: 1rem;
+            text-align: left;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            color: #FFD700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .users-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .users-table tbody tr:hover {
+            background: rgba(0, 255, 255, 0.05);
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .leaderboard-table thead {
+            background: rgba(255, 215, 0, 0.1);
+        }
+
+        .leaderboard-table th {
+            padding: 1rem;
+            text-align: left;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            color: #FFD700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .leaderboard-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .leaderboard-table tbody tr:hover {
+            background: rgba(255, 215, 0, 0.05);
+        }
+
+        .rank-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .rank-1 {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #000;
+        }
+
+        .rank-2 {
+            background: linear-gradient(135deg, #C0C0C0 0%, #999999 100%);
+            color: #000;
+        }
+
+        .rank-3 {
+            background: linear-gradient(135deg, #CD7F32 0%, #8B4513 100%);
+            color: #fff;
+        }
+
+        .loading {
+            text-align: center;
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 2rem;
+        }
+
+        .refresh-button {
+            background: linear-gradient(135deg, #00FFFF 0%, #0080FF 100%);
+            color: #000;
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 5px 20px rgba(0, 255, 255, 0.4);
+            transition: all 0.3s ease;
+            margin: 1rem 0;
+        }
+
+        .refresh-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 255, 255, 0.6);
+        }
+
+        .back-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #000;
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 10px;
+            text-decoration: none;
+            cursor: pointer;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+            transition: all 0.3s ease;
+            margin-bottom: 2rem;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.6);
+        }
+
+        @media (max-width: 768px) {
+            .admin-header h1 {
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .users-table, .leaderboard-table {
+                font-size: 0.85rem;
+            }
+
+            .users-table th, .users-table td,
+            .leaderboard-table th, .leaderboard-table td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <a href="/" class="back-button">🏠 Torna alla Home</a>
+
+        <div class="admin-header">
+            <h1>⚙️ ADMIN STATION</h1>
+            <p>Pannello di amministrazione e monitoraggio</p>
+        </div>
+
+        <!-- Global Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>🔥 Credits Bruciati</h3>
+                <div class="stat-value" id="totalBurnedDisplay">0</div>
+                <div class="stat-label">Totale Bot Winnings</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>👥 Utenti Attivi</h3>
+                <div class="stat-value" id="totalUsersDisplay">0</div>
+                <div class="stat-label">Registrati</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>💰 Pool Staking</h3>
+                <div class="stat-value" id="stakingPoolDisplay">0</div>
+                <div class="stat-label">LUNC Depositati</div>
+            </div>
+
+            <div class="stat-card">
+                <h3>🎮 Partite Totali</h3>
+                <div class="stat-value" id="totalGamesDisplay">0</div>
+                <div class="stat-label">Luncopoly Blitz</div>
+            </div>
+        </div>
+
+        <button class="refresh-button" onclick="loadAllData()">🔄 Aggiorna Dati</button>
+
+        <!-- Active Users Table -->
+        <div class="section">
+            <h2 class="section-header">📊 Lista Utenti Attivi</h2>
+            <div id="usersTableContainer">
+                <div class="loading">Caricamento...</div>
+            </div>
+        </div>
+
+        <!-- Monthly Leaderboard -->
+        <div class="section">
+            <h2 class="section-header">🏆 Classifica Mensile (Top 20)</h2>
+            <div id="leaderboardContainer">
+                <div class="loading">Caricamento...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+
+        // Format numbers
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(2) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(2) + 'K';
+            }
+            return num.toLocaleString('it-IT');
+        }
+
+        // Load admin stats
+        async function loadAdminStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/stats`);
+                if (!response.ok) throw new Error('Failed to load admin stats');
+
+                const data = await response.json();
+
+                document.getElementById('totalBurnedDisplay').textContent = formatNumber(data.totalBurned || 0);
+                document.getElementById('totalUsersDisplay').textContent = formatNumber(data.totalUsers || 0);
+                document.getElementById('stakingPoolDisplay').textContent = formatNumber(data.stakingPool || 0);
+                document.getElementById('totalGamesDisplay').textContent = formatNumber(data.totalGames || 0);
+
+            } catch (error) {
+                console.error('Error loading admin stats:', error);
+            }
+        }
+
+        // Load active users
+        async function loadActiveUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/users`);
+                if (!response.ok) throw new Error('Failed to load users');
+
+                const users = await response.json();
+
+                const container = document.getElementById('usersTableContainer');
+
+                if (users.length === 0) {
+                    container.innerHTML = '<div class="loading">Nessun utente trovato</div>';
+                    return;
+                }
+
+                let html = `
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Credits</th>
+                                <th>Punti</th>
+                                <th>LUNC Staked</th>
+                                <th>Ultimo Login</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                users.forEach(user => {
+                    const lastLogin = user.last_login ? new Date(user.last_login).toLocaleDateString('it-IT') : 'N/A';
+
+                    html += `
+                        <tr>
+                            <td><strong>${user.id_univoco}</strong></td>
+                            <td>${formatNumber(user.crediti || 0)}</td>
+                            <td>${formatNumber(user.punti || 0)}</td>
+                            <td>${formatNumber(user.total_deposited_lunc || 0)}</td>
+                            <td>${lastLogin}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading active users:', error);
+                document.getElementById('usersTableContainer').innerHTML = '<div class="loading">Errore caricamento utenti</div>';
+            }
+        }
+
+        // Load leaderboard
+        async function loadLeaderboard() {
+            try {
+                const response = await fetch(`${API_BASE}/api/leaderboard`);
+                if (!response.ok) throw new Error('Failed to load leaderboard');
+
+                const data = await response.json();
+                const users = data.users || [];
+
+                const container = document.getElementById('leaderboardContainer');
+
+                if (users.length === 0) {
+                    container.innerHTML = '<div class="loading">Nessun utente in classifica</div>';
+                    return;
+                }
+
+                let html = `
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Posizione</th>
+                                <th>Username</th>
+                                <th>Punti</th>
+                                <th>Credits</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                users.slice(0, 20).forEach((user, index) => {
+                    const rank = index + 1;
+                    let rankBadge = `<span class="rank-badge">#${rank}</span>`;
+
+                    if (rank === 1) {
+                        rankBadge = `<span class="rank-badge rank-1">🥇 #1</span>`;
+                    } else if (rank === 2) {
+                        rankBadge = `<span class="rank-badge rank-2">🥈 #2</span>`;
+                    } else if (rank === 3) {
+                        rankBadge = `<span class="rank-badge rank-3">🥉 #3</span>`;
+                    }
+
+                    html += `
+                        <tr>
+                            <td>${rankBadge}</td>
+                            <td><strong>${user.id_univoco}</strong></td>
+                            <td>${formatNumber(user.punti || 0)}</td>
+                            <td>${formatNumber(user.crediti || 0)}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+                document.getElementById('leaderboardContainer').innerHTML = '<div class="loading">Errore caricamento classifica</div>';
+            }
+        }
+
+        // Load all data
+        async function loadAllData() {
+            await loadAdminStats();
+            await loadActiveUsers();
+            await loadLeaderboard();
+        }
+
+        // Initialize on page load
+        loadAllData();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadAllData, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The RD Station - Blockchain Gaming Hub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles-lunopoly-neon.css">
+    <link rel="stylesheet" href="styles-rd-station.css">
+    <link rel="stylesheet" href="styles-station-manual.css">
+    <link rel="stylesheet" href="styles-brand-overrides.css">
+    <link rel="stylesheet" href="styles-staking-setup.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <div class="logo-container">
+                <h1 class="neon-text rd-station-brand">THE RD STATION</h1>
+                <p class="subtitle">Your Gateway to Blockchain Gaming & Staking</p>
+            </div>
+            <div class="login-box">
+                <h2>Accesso Piattaforma</h2>
+                <input type="text" id="usernameInput" placeholder="Inserisci Username" autocomplete="off">
+                <button id="loginBtn" class="cyber-button">
+                    <span>CONNETTI</span>
+                </button>
+                <div id="loginError" class="error-message"></div>
+            </div>
+            <div class="tech-specs">
+                <div class="spec-item">
+                    <span class="spec-label">NETWORK:</span>
+                    <span class="spec-value">LUNC MAINNET</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">STATUS:</span>
+                    <span class="spec-value online">ONLINE</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="screen">
+        <!-- Global Header (Always Visible) -->
+        <header class="global-header">
+            <div class="header-left">
+                <button id="homeBtn" class="home-button">
+                    <span class="home-icon">🏠</span>
+                    <span class="home-label">TORNA ALLA HOME</span>
+                </button>
+            </div>
+            <div class="header-center">
+                <div class="user-stats-compact">
+                    <div class="stat-compact">
+                        <span class="stat-label-compact">ID:</span>
+                        <span class="stat-value-compact" id="idDisplay">---</span>
+                    </div>
+                    <div class="stat-compact credits-stat">
+                        <span class="stat-label-compact">💰 CREDITI:</span>
+                        <span class="stat-value-compact" id="creditsDisplay">0</span>
+                    </div>
+                    <div class="stat-compact points-stat">
+                        <span class="stat-label-compact">🎯 PUNTI:</span>
+                        <span class="stat-value-compact" id="puntiDisplay">0</span>
+                    </div>
+                    <div class="stat-compact capital-stat">
+                        <span class="stat-label-compact">🔒 CAPITALE:</span>
+                        <span class="stat-value-compact" id="capitalDisplay">0</span>
+                        <span class="stat-unit-compact">LUNC</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="logoutBtn" class="logout-button">ESCI</button>
+            </div>
+        </header>
+
+        <!-- THE RD STATION HUB (Home) -->
+        <div id="hubScreen" class="page-container active">
+            <div id="rdStationHubContainer">
+                <!-- Hub content will be rendered by rd-station-hub.js -->
+            </div>
+        </div>
+
+        <!-- STAKING HUB Page (Dashboard) -->
+        <div id="stakingPage" class="page-container">
+            <div class="page-content">
+                <div class="page-tabs">
+                    <button class="tab-button active" data-tab="dashboard">📊 STAKING DASHBOARD</button>
+                    <button class="tab-button" data-tab="leaderboard">🏆 CLASSIFICA</button>
+                </div>
+
+                <!-- Dashboard Tab -->
+                <div id="dashboardTab" class="tab-content active">
+                    <div class="module-header">
+                        <h2>📊 STAKING DASHBOARD - Panoramica Economica</h2>
+                        <p class="module-description">Gestisci il tuo capitale e monitora le statistiche globali</p>
+                    </div>
+
+                    <!-- Staking Setup Container -->
+                    <div id="stakingSetupContainer">
+                        <!-- Staking setup content will be rendered by staking-setup.js -->
+                    </div>
+
+                    <!-- Capital Protection Notice -->
+                    <div class="capital-notice">
+                        <div class="notice-icon">🔒</div>
+                        <div class="notice-content">
+                            <h3>Protezione del Capitale al 100%</h3>
+                            <p>Il tuo capitale è <strong>garantito al 100%</strong> e protetto in staking. Il principale non viene mai speso.</p>
+                        </div>
+                    </div>
+
+                    <!-- User Capital Stats -->
+                    <div class="dashboard-grid">
+                        <div class="dashboard-card">
+                            <h3>💰 Il Tuo Capitale</h3>
+                            <div class="big-stat">
+                                <span class="stat-value" id="userCapitalDisplay">0</span>
+                                <span class="stat-unit">LUNC</span>
+                            </div>
+                            <p class="stat-description">Capitale totale depositato e protetto in staking</p>
+                        </div>
+
+                        <div class="dashboard-card">
+                            <h3>⚡ Crediti Residui</h3>
+                            <div class="big-stat">
+                                <span class="stat-value" id="userCreditsDisplay">0</span>
+                                <span class="stat-unit">Crediti</span>
+                            </div>
+                            <p class="stat-description">Crediti disponibili per giochi e chat</p>
+                        </div>
+
+                        <div class="dashboard-card">
+                            <h3>📈 Ratio Minting</h3>
+                            <div class="big-stat">
+                                <span class="stat-value">1,500</span>
+                                <span class="stat-unit">Crediti</span>
+                            </div>
+                            <p class="stat-description">Per ogni 100,000 LUNC depositati</p>
+                        </div>
+                    </div>
+
+                    <!-- Deposit Section -->
+                    <div class="deposit-section">
+                        <h3>💎 Deposita LUNC</h3>
+                        <p class="section-description">Deposita LUNC per mintare Crediti. Deposito minimo: 100,000 LUNC (multipli di 100,000)</p>
+                        <div class="deposit-form">
+                            <input type="number" id="depositAmountInput" placeholder="Inserisci importo (es: 100000)" step="100000" min="100000">
+                            <button id="depositBtn" class="cyber-button">
+                                <span>DEPOSITA LUNC</span>
+                            </button>
+                        </div>
+                        <div id="depositStatus" class="status-message"></div>
+                        <div class="deposit-info">
+                            <p><strong>Nota:</strong> In ambiente di test, il deposito viene simulato. In produzione, sarà richiesta una transazione blockchain reale.</p>
+                        </div>
+                    </div>
+
+                    <!-- Global Stats -->
+                    <div class="global-stats-section">
+                        <h3>🌐 Statistiche Globali</h3>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">💼</div>
+                                <div class="stat-content">
+                                    <div class="stat-label">Pool di Staking Totale</div>
+                                    <div class="stat-number" id="globalStakingPool">0</div>
+                                    <div class="stat-suffix">LUNC</div>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">🏆</div>
+                                <div class="stat-content">
+                                    <div class="stat-label">Fondo Premi (50% APR)</div>
+                                    <div class="stat-number" id="fondoPremi">0</div>
+                                    <div class="stat-suffix">LUNC</div>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">🔥</div>
+                                <div class="stat-content">
+                                    <div class="stat-label">LUNC Bruciati da Yield</div>
+                                    <div class="stat-number" id="totalBurned">0</div>
+                                    <div class="stat-suffix">LUNC</div>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon">📊</div>
+                                <div class="stat-content">
+                                    <div class="stat-label">APR Corrente</div>
+                                    <div class="stat-number" id="currentAPR">5.0</div>
+                                    <div class="stat-suffix">%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- APR Distribution Breakdown -->
+                    <div class="apr-breakdown">
+                        <h3>📊 Distribuzione APR</h3>
+                        <p class="section-description">100% dell'APR generato dal pool di staking viene distribuito come segue:</p>
+                        <div class="breakdown-grid">
+                            <div class="breakdown-item">
+                                <div class="breakdown-bar" style="width: 50%; background: linear-gradient(135deg, #ffd700, #ffaa00);">
+                                    <span>50%</span>
+                                </div>
+                                <div class="breakdown-label">🏆 Fondo Premi (Top 10)</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-bar" style="width: 20%; background: linear-gradient(135deg, #ff4500, #ff6347);">
+                                    <span>20%</span>
+                                </div>
+                                <div class="breakdown-label">🔥 Burn Strategico</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-bar" style="width: 15%; background: linear-gradient(135deg, #00ffff, #00ced1);">
+                                    <span>15%</span>
+                                </div>
+                                <div class="breakdown-label">⚙️ Sviluppo & Server</div>
+                            </div>
+                            <div class="breakdown-item">
+                                <div class="breakdown-bar" style="width: 15%; background: linear-gradient(135deg, #00ff00, #32cd32);">
+                                    <span>15%</span>
+                                </div>
+                                <div class="breakdown-label">👤 Creator Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Tab -->
+                <div id="leaderboardTab" class="tab-content">
+                    <div class="module-header">
+                        <h2>🏆 CLASSIFICA - Top Players</h2>
+                        <p class="module-description">I migliori giocatori per Punti Social-to-Earn (Reset mensile)</p>
+                    </div>
+                    <div class="leaderboard-notice">
+                        <p>⚠️ La classifica si basa sui <strong>Punti</strong> guadagnati con Social-to-Earn</p>
+                        <p>🔄 Reset automatico ogni 30 giorni</p>
+                    </div>
+                    <div class="leaderboard-container">
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>POSIZIONE</th>
+                                    <th>USERNAME</th>
+                                    <th>PUNTI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboardBody">
+                                <!-- Leaderboard data -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME CENTER Page (Luncopoly) -->
+        <div id="gameCenterPage" class="page-container">
+            <div class="page-content">
+                <div class="module-header">
+                    <h2>🎲 GAME CENTER - Luncopoly</h2>
+                    <p class="module-description">Tabellone a 24 caselle | Buy-in: 50 Crediti | Capitale iniziale: 1,500 L</p>
+                </div>
+
+                <!-- Lobby Join Section -->
+                <div class="lobby-join-section">
+                    <div class="lobby-info-card">
+                        <h3>🎮 PARTECIPA A LUNCOPOLY</h3>
+                        <p>Buy-in: <strong>50 Crediti</strong> (dedotti dal tuo Staking Balance)</p>
+                        <p>Prize Pool totale: <strong>250 Crediti</strong> (distribuiti ai vincitori)</p>
+                        <p>Capitale di gioco iniziale: <strong>1,500 L</strong></p>
+                        <p>Tavoli attivi: <span id="activeTablesCount">0/2</span></p>
+                        <button id="joinLobbyBtn" class="cyber-button">
+                            <span>💰 ENTRA IN LOBBY (50 Crediti)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Game Container -->
+                <div class="game-container">
+                    <div class="game-board" id="gameBoard">
+                        <!-- Il tabellone verrà generato dinamicamente -->
+                    </div>
+                    <div class="game-controls">
+                        <div class="game-info">
+                            <h3>Informazioni Partita</h3>
+                            <div class="info-item">
+                                <span>Posizione:</span>
+                                <span id="playerPosition">0</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Turno:</span>
+                                <span id="currentTurn">In attesa...</span>
+                            </div>
+                        </div>
+                        <button id="rollDiceBtn" class="cyber-button action-btn">
+                            <span>🎲 LANCIA DADI</span>
+                        </button>
+
+                        <div id="diceResult" class="dice-result"></div>
+
+                        <div class="action-buttons-grid">
+                            <button id="buyBtn" class="action-button-small">
+                                <span>💰 COMPRA</span>
+                            </button>
+                            <button id="auctionBtn" class="action-button-small">
+                                <span>🔨 ASTA</span>
+                            </button>
+                            <button id="tradeBtn" class="action-button-small">
+                                <span>🤝 SCAMBIA</span>
+                            </button>
+                            <button id="endTurnBtn" class="action-button-small">
+                                <span>⏭️ FINE TURNO</span>
+                            </button>
+                        </div>
+
+                        <div class="timer-display">
+                            <span>Timer Automatico:</span>
+                            <span id="turnTimer">10s</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="game-log" id="gameLog">
+                    <h3>Log Eventi</h3>
+                    <div id="gameLogContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOCIAL REWARDS Page -->
+        <div id="socialRewardsPage" class="page-container">
+            <div id="socialTasksContainer">
+                <!-- Social tasks content will be rendered by social-tasks.js -->
+            </div>
+        </div>
+
+        <!-- RD INSIGHTS Page -->
+        <div id="rdInsightsPage" class="page-container">
+            <div class="page-content">
+                <div class="module-header">
+                    <h2>📰 RD INSIGHTS - Rendite Digitali Blog</h2>
+                    <p class="module-description">Latest insights and updates from the Rendite Digitali blog</p>
+                </div>
+                <div class="blog-iframe-container">
+                    <iframe id="rdInsightsBlogIframe"
+                            src="https://renditedigitali.blogspot.com"
+                            title="Rendite Digitali Blog"
+                            frameborder="0"
+                            allowfullscreen>
+                    </iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOCIAL WALL Page -->
+        <div id="socialPage" class="page-container">
+            <div class="page-content">
+                <div class="module-header">
+                    <h2>💬 SOCIAL WALL - Chat in Tempo Reale</h2>
+                    <p class="module-description">Ogni messaggio costa 1 Credito e ti dà +10 Punti</p>
+                </div>
+                <div class="social-container">
+                    <div class="messages-area" id="messagesArea">
+                        <!-- Messaggi verranno aggiunti qui -->
+                    </div>
+                    <div class="message-input-area">
+                        <input type="text" id="messageInput" placeholder="Scrivi un messaggio (costo: 1 Credito, premio: +10 Punti)..." maxlength="500">
+                        <button id="sendMessageBtn" class="cyber-button">
+                            <span>INVIA</span>
+                        </button>
+                    </div>
+                    <div id="chatError" class="error-message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATION MANUAL Page -->
+        <div id="manualPage" class="page-container">
+            <div id="stationManualContainer">
+                <!-- Station Manual content will be rendered by station-manual.js -->
+            </div>
+        </div>
+
+        <!-- MISSION CONTROL Page -->
+        <div id="missionPage" class="page-container">
+            <div class="page-content">
+                <div class="module-header">
+                    <h2>📈 MISSION CONTROL</h2>
+                    <p class="module-description">Blog, Social-to-Earn Tasks & Monthly Leaderboard</p>
+                </div>
+
+                <!-- 3-PANEL LAYOUT: Blog Left + Tasks Right -->
+                <div class="mission-panels">
+                    <!-- LEFT PANEL: Blog Iframe -->
+                    <div class="mission-panel-left" id="blogPanel">
+                        <div class="panel-header">
+                            <h3>📰 BLOG - Rendite Digitali</h3>
+                        </div>
+                        <div class="blog-iframe-container">
+                            <iframe id="blogIframe"
+                                    title="Rendite Digitali Blog"
+                                    frameborder="0"
+                                    allowfullscreen>
+                            </iframe>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT PANEL: Social-to-Earn Tasks -->
+                    <div class="mission-panel-right" id="tasksPanel">
+                        <div class="panel-header">
+                            <h3>🎯 SOCIAL-TO-EARN TASKS</h3>
+                        </div>
+
+                        <div class="tasks-container">
+                            <!-- Mission Cards will be generated dynamically by mission.js -->
+                            <div class="loading">Caricamento missioni...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BOTTOM PANEL: Monthly Leaderboard -->
+                <div class="mission-panel-bottom">
+                    <div id="missionLeaderboard" class="mission-leaderboard">
+                        <div class="loading">Caricamento classifica...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Overlay (Waiting Room) -->
+    <div id="lobbyOverlay" class="lobby-overlay">
+        <div class="lobby-container">
+            <div class="lobby-header">
+                <h2>🎮 LUNOPOLY - WAITING ROOM</h2>
+                <p class="lobby-subtitle">Attendi altri giocatori o l'avvio della partita...</p>
+            </div>
+
+            <div class="lobby-stats">
+                <div class="lobby-stat-card">
+                    <div class="stat-icon">🎲</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Tavoli Attivi</div>
+                        <div class="stat-value" id="activeTablesCount">0/2</div>
+                    </div>
+                </div>
+
+                <div class="lobby-stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Giocatori nel tuo tavolo</div>
+                        <div class="stat-value" id="lobbyPlayerCount">0/5</div>
+                    </div>
+                </div>
+
+                <div class="lobby-stat-card countdown-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-content">
+                        <div class="stat-label">Inizio tra</div>
+                        <div class="stat-value countdown" id="lobbyCountdown">05:00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lobby-players-section">
+                <h3>👥 GIOCATORI NEL TAVOLO</h3>
+                <div id="lobbyPlayerList" class="lobby-player-list">
+                    <div class="loading">Caricamento...</div>
+                </div>
+            </div>
+
+            <div class="lobby-rules">
+                <h4>📋 REGOLE</h4>
+                <ul>
+                    <li>Massimo 5 giocatori per tavolo</li>
+                    <li>Se 5 umani si uniscono, la partita inizia immediatamente</li>
+                    <li>Dopo 5 minuti, i posti vuoti vengono riempiti con bot conservatori</li>
+                    <li>Capitale iniziale: 1,500 L per ogni giocatore</li>
+                    <li>Prize Pool: 250 Crediti (distribuiti ai vincitori)</li>
+                </ul>
+            </div>
+
+            <div class="lobby-actions">
+                <button id="leaveLobbyBtn" class="cyber-button leave-btn">
+                    <span>🚪 ESCI DALLA LOBBY (Rimborso: 50 Crediti)</span>
+                </button>
+            </div>
+
+            <div class="lobby-footer">
+                <div class="powered-by">
+                    <span>Powered by</span>
+                    <a href="https://renditedigitali.blogspot.com" target="_blank" class="blog-link">
+                        <strong>Rendite Digitali</strong>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Help Button -->
+    <button id="helpBtn" class="help-button" title="Open Station Manual" aria-label="Open Station Manual"></button>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+    <script src="modules/rd-brand-voice.js"></script>
+    <script src="modules/station-manual.js"></script>
+    <script src="modules/rd-station-hub.js"></script>
+    <script src="modules/staking-setup.js"></script>
+    <script src="modules/social-tasks.js"></script>
+    <script src="modules/dashboard.js"></script>
+    <script src="modules/game.js"></script>
+    <script src="modules/social.js"></script>
+    <script src="modules/social-earn.js"></script>
+    <script src="modules/mission.js"></script>
+    <script src="modules/lobby.js"></script>
+    <script src="modules/lunopoly.js"></script>
+    <script src="modules/lunopoly-endgame.js"></script>
+    <script src="modules/lunopoly-neon-enhanced.js"></script>
+    <script src="modules/session-recovery.js"></script>
+</body>
+</html>

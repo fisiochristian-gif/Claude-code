@@ -1,0 +1,675 @@
+/* ================================
+   THE RD STATION - BRAND OVERRIDES
+   Color coherence & branded assets
+   ================================ */
+
+/* ================================
+   COLOR SYSTEM ENFORCEMENT
+   ================================ */
+
+:root {
+    /* Primary Brand Colors */
+    --rd-gold: #FFD700;
+    --rd-gold-dark: #FFA500;
+    --rd-gold-light: #FFEA70;
+
+    /* Secondary Brand Colors */
+    --rd-cyan: #00FFFF;
+    --rd-cyan-dark: #0080FF;
+    --rd-cyan-light: #7FFFFF;
+
+    /* Accent Colors */
+    --rd-magenta: #FF00FF;
+    --rd-green: #39FF14;
+    --rd-red: #FF4444;
+
+    /* Backgrounds */
+    --deep-space-black: #050505;
+    --station-dark: #0A0A14;
+    --station-darker: #1A1A2E;
+
+    /* Transparency Levels */
+    --glass-10: rgba(10, 10, 20, 0.1);
+    --glass-30: rgba(10, 10, 20, 0.3);
+    --glass-60: rgba(10, 10, 20, 0.6);
+    --glass-80: rgba(10, 10, 20, 0.8);
+}
+
+/* ================================
+   PRIMARY ACTION COLORS (RD GOLD)
+   ================================ */
+
+/* All primary buttons */
+.cyber-button,
+.primary-button,
+button.primary,
+.action-button,
+.cta-button {
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 100%) !important;
+    color: var(--deep-space-black) !important;
+    border: none !important;
+    box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4) !important;
+}
+
+.cyber-button:hover,
+.primary-button:hover,
+button.primary:hover,
+.action-button:hover,
+.cta-button:hover {
+    box-shadow: 0 8px 30px rgba(255, 215, 0, 0.6) !important;
+    transform: translateY(-2px);
+}
+
+/* Primary links and accents */
+.neon-text,
+.primary-text,
+.accent-text,
+a.primary {
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Primary borders */
+.primary-border,
+.card-primary,
+.panel-primary {
+    border-color: var(--rd-gold) !important;
+}
+
+/* Primary glow effects */
+.glow-primary {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3),
+                0 0 20px rgba(255, 215, 0, 0.2),
+                0 0 30px rgba(255, 215, 0, 0.1);
+}
+
+/* ================================
+   DATA/INFO COLORS (RD CYAN)
+   ================================ */
+
+/* All data displays and informational elements */
+.stat-value,
+.data-value,
+.info-value,
+.ticker-value,
+.metric-value {
+    color: var(--rd-cyan) !important;
+    font-family: 'Orbitron', monospace;
+}
+
+/* Info buttons */
+.info-button,
+.secondary-button,
+button.secondary {
+    background: linear-gradient(135deg, var(--rd-cyan) 0%, var(--rd-cyan-dark) 100%) !important;
+    color: var(--deep-space-black) !important;
+    border: none !important;
+    box-shadow: 0 5px 20px rgba(0, 255, 255, 0.4) !important;
+}
+
+.info-button:hover,
+.secondary-button:hover,
+button.secondary:hover {
+    box-shadow: 0 8px 30px rgba(0, 255, 255, 0.6) !important;
+}
+
+/* Info borders */
+.info-border,
+.card-info,
+.panel-info {
+    border-color: var(--rd-cyan) !important;
+}
+
+/* Info glow effects */
+.glow-info,
+.glow-cyan {
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3),
+                0 0 20px rgba(0, 255, 255, 0.2),
+                0 0 30px rgba(0, 255, 255, 0.1);
+}
+
+/* ================================
+   BRANDED LOGO PLACEMENT
+   ================================ */
+
+/* RD Logo Component */
+.rd-logo-mark {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 2rem;
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 50%, var(--rd-gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.8));
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+}
+
+/* Luncopoly Board Center Logo */
+.game-board {
+    position: relative;
+}
+
+.game-board::before {
+    content: 'RD';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 8rem;
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 50%, var(--rd-gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    opacity: 0.15;
+    z-index: 0;
+    pointer-events: none;
+    filter: drop-shadow(0 0 40px rgba(255, 215, 0, 0.4));
+}
+
+/* Staking Dashboard Background Logo */
+.dashboard-grid::before,
+#dashboardTab::before {
+    content: 'RD';
+    position: absolute;
+    top: 20%;
+    right: 5%;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 15rem;
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 50%, var(--rd-gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    opacity: 0.08;
+    z-index: 0;
+    pointer-events: none;
+    filter: drop-shadow(0 0 60px rgba(255, 215, 0, 0.3));
+}
+
+.dashboard-grid,
+#dashboardTab {
+    position: relative;
+}
+
+.dashboard-grid > *,
+#dashboardTab > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Social Rewards Header Logo */
+.social-tasks-header::before,
+#socialTasksContainer::before {
+    content: 'RD';
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 6rem;
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 50%, var(--rd-gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    opacity: 0.12;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.social-tasks-header,
+#socialTasksContainer {
+    position: relative;
+    padding-top: 80px;
+}
+
+/* Login Screen Logo */
+.login-container .logo-container::after {
+    content: 'Powered by Rendite Digitali';
+    display: block;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    color: rgba(255, 215, 0, 0.6);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+/* ================================
+   STRATEGIC DESCRIPTION UPDATES
+   ================================ */
+
+/* Add RD branding to key descriptions */
+.module-description,
+.hub-card-description,
+.section-description {
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+}
+
+/* Staking Hub description branding */
+.capital-notice .notice-content p::after {
+    content: ' — Official Rendite Digitali LUNC Strategy';
+    font-weight: 600;
+    color: var(--rd-gold);
+}
+
+/* Game Center tagline */
+.lobby-info-card h3::after {
+    content: ' — Climb the Monthly RD Leaderboard';
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--rd-cyan);
+    margin-top: 0.5rem;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+/* ================================
+   GLOBAL BRANDING ENHANCEMENTS
+   ================================ */
+
+/* All headings use RD Gold */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--rd-gold);
+}
+
+/* All module headers */
+.module-header h2,
+.section-header h2,
+.panel-header h2 {
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+}
+
+/* Status indicators use RD colors */
+.status-online,
+.status-active,
+.status-success {
+    color: var(--rd-green) !important;
+}
+
+.status-warning,
+.status-pending {
+    color: var(--rd-gold) !important;
+}
+
+.status-error,
+.status-danger {
+    color: var(--rd-red) !important;
+}
+
+/* ================================
+   NAVBAR & HEADER BRANDING
+   ================================ */
+
+/* Global header branding */
+.global-header {
+    background: linear-gradient(135deg,
+                var(--station-darker) 0%,
+                var(--station-dark) 100%);
+    border-bottom: 2px solid var(--rd-gold);
+    box-shadow: 0 5px 20px rgba(255, 215, 0, 0.2);
+}
+
+/* Home button (RD Gold) */
+.home-button {
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 100%);
+    color: var(--deep-space-black);
+    border: none;
+    box-shadow: 0 3px 10px rgba(255, 215, 0, 0.4);
+}
+
+.home-button:hover {
+    box-shadow: 0 5px 20px rgba(255, 215, 0, 0.6);
+}
+
+/* Stats display (RD Cyan) */
+.stat-compact .stat-value-compact {
+    color: var(--rd-cyan);
+    font-family: 'Orbitron', monospace;
+}
+
+/* Credits stat (RD Gold) */
+.stat-compact.credits-stat .stat-value-compact {
+    color: var(--rd-gold);
+    font-weight: 700;
+}
+
+/* ================================
+   CARD & PANEL BRANDING
+   ================================ */
+
+/* All cards use glassmorphism with brand borders */
+.card,
+.panel,
+.widget,
+.info-card {
+    background: var(--glass-60);
+    backdrop-filter: blur(25px);
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    border-radius: 16px;
+}
+
+.card:hover,
+.panel:hover,
+.widget:hover {
+    border-color: rgba(255, 215, 0, 0.6);
+    box-shadow: 0 10px 40px rgba(255, 215, 0, 0.2);
+}
+
+/* Hub cards specific colors */
+.hub-card.staking-hub {
+    border-color: var(--rd-gold);
+}
+
+.hub-card.social-rewards {
+    border-color: var(--rd-cyan);
+}
+
+.hub-card.game-center {
+    border-color: var(--rd-magenta);
+}
+
+.hub-card.rd-insights {
+    border-color: var(--rd-green);
+}
+
+/* ================================
+   BUTTON SYSTEM OVERRIDES
+   ================================ */
+
+/* Logout button (subtle) */
+.logout-button {
+    background: transparent;
+    color: var(--rd-gold);
+    border: 2px solid rgba(255, 215, 0, 0.4);
+}
+
+.logout-button:hover {
+    background: rgba(255, 215, 0, 0.1);
+    border-color: rgba(255, 215, 0, 0.8);
+}
+
+/* Tab buttons */
+.tab-button {
+    color: rgba(255, 255, 255, 0.6);
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button.active {
+    color: var(--rd-gold);
+    border-bottom-color: var(--rd-gold);
+}
+
+.tab-button:hover {
+    color: var(--rd-cyan);
+}
+
+/* Action buttons in game */
+.action-button-small {
+    background: linear-gradient(135deg, var(--rd-cyan) 0%, var(--rd-cyan-dark) 100%);
+    color: var(--deep-space-black);
+    border: none;
+    box-shadow: 0 3px 10px rgba(0, 255, 255, 0.3);
+}
+
+.action-button-small:hover {
+    box-shadow: 0 5px 20px rgba(0, 255, 255, 0.5);
+}
+
+/* ================================
+   FORM ELEMENTS
+   ================================ */
+
+/* Input fields */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+textarea,
+select {
+    background: var(--glass-30);
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--rd-gold);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+    outline: none;
+}
+
+/* ================================
+   NOTIFICATION SYSTEM
+   ================================ */
+
+.notification,
+.toast,
+.alert {
+    background: var(--glass-80);
+    backdrop-filter: blur(20px);
+    border-left: 4px solid var(--rd-gold);
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+}
+
+.notification.success {
+    border-left-color: var(--rd-green);
+}
+
+.notification.error {
+    border-left-color: var(--rd-red);
+}
+
+.notification.info {
+    border-left-color: var(--rd-cyan);
+}
+
+.notification.warning {
+    border-left-color: var(--rd-gold);
+}
+
+/* ================================
+   LOADING STATES
+   ================================ */
+
+.loading,
+.spinner,
+.loader {
+    color: var(--rd-gold);
+}
+
+.loading::after {
+    content: 'Syncing with the RD Node...';
+    display: block;
+    margin-top: 1rem;
+    color: rgba(255, 215, 0, 0.7);
+    font-size: 0.9rem;
+}
+
+/* Spinner animation */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinner::before {
+    content: '';
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 215, 0, 0.2);
+    border-top-color: var(--rd-gold);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* ================================
+   SCROLLBAR BRANDING
+   ================================ */
+
+/* Webkit scrollbar */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--station-dark);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 100%);
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--rd-gold-light) 0%, var(--rd-gold) 100%);
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--rd-gold) var(--station-dark);
+}
+
+/* ================================
+   SELECTION BRANDING
+   ================================ */
+
+::selection {
+    background: rgba(255, 215, 0, 0.3);
+    color: white;
+}
+
+::-moz-selection {
+    background: rgba(255, 215, 0, 0.3);
+    color: white;
+}
+
+/* ================================
+   FOOTER BRANDING
+   ================================ */
+
+footer,
+.footer,
+.app-footer {
+    background: linear-gradient(135deg,
+                var(--station-dark) 0%,
+                var(--deep-space-black) 100%);
+    border-top: 2px solid var(--rd-gold);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+footer a,
+.footer a {
+    color: var(--rd-gold);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+footer a:hover,
+.footer a:hover {
+    color: var(--rd-cyan);
+}
+
+/* ================================
+   HELP BUTTON (FOR MANUAL)
+   ================================ */
+
+.help-button,
+#helpBtn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--rd-gold) 0%, var(--rd-gold-dark) 100%);
+    color: var(--deep-space-black);
+    border: none;
+    font-size: 2rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 5px 20px rgba(255, 215, 0, 0.5);
+    transition: all 0.3s ease;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-button:hover,
+#helpBtn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 30px rgba(255, 215, 0, 0.7);
+}
+
+.help-button::before,
+#helpBtn::before {
+    content: '?';
+}
+
+/* ================================
+   RESPONSIVE ADJUSTMENTS
+   ================================ */
+
+@media (max-width: 768px) {
+    .game-board::before {
+        font-size: 4rem;
+    }
+
+    .dashboard-grid::before,
+    #dashboardTab::before {
+        font-size: 8rem;
+        right: -5%;
+    }
+
+    .social-tasks-header::before,
+    #socialTasksContainer::before {
+        font-size: 4rem;
+    }
+
+    .help-button,
+    #helpBtn {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+        bottom: 1rem;
+        right: 1rem;
+    }
+}
+
+/* ================================
+   PRINT STYLES (PRESERVE BRANDING)
+   ================================ */
+
+@media print {
+    .help-button,
+    #helpBtn,
+    .logout-button {
+        display: none;
+    }
+
+    * {
+        color: black !important;
+        background: white !important;
+    }
+
+    .rd-logo-mark,
+    .neon-text {
+        color: #FFD700 !important;
+        -webkit-text-fill-color: #FFD700 !important;
+    }
+}
