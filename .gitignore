@@ -52,3 +52,8 @@ tmp/
 temp/
 *.tmp
 *.cache
+
+# Distribution archives
+*.zip
+*.tar.gz
+*.rar
